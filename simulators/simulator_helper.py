@@ -158,7 +158,7 @@ class SimulatorHelper(object):
                     self.num_collided_agents += 1  # add collisions with robot
             else:
                 # remove agent since its not within the time frame or finished
-                if a.get_name() in self.prerecs.keys():
+                if a.get_name() in self.prerecs:
                     if a.get_end_acting() and a.get_collided():
                         self.num_collided_agents += 1
                     else:
@@ -208,7 +208,7 @@ class SimulatorHelper(object):
                                                        args=(current_state,)))
             else:
                 # remove agent since its not within the time frame or finished
-                if a.get_name() in self.prerecs.keys():
+                if a.get_name() in self.prerecs:
                     if a.get_collided():
                         self.num_collided_agents += 1
                     else:
@@ -344,7 +344,7 @@ class SimulatorHelper(object):
         if self.params.render_3D:
             # TODO: Fix multiprocessing for properly deepcopied renderers
             # only when rendering with opengl
-            assert("human_traversible" in state.get_environment().keys())
+            assert("human_traversible" in state.get_environment())
             # remove the "old" humans
             renderer.remove_all_humans()
             # update pedestrians humans
@@ -442,11 +442,11 @@ def add_sim_state_to_dataframe(sim_step, sim_state, df, agent_info):
         if not isinstance(agent, dict):
             traj = \
                 np.squeeze(agent.vehicle_trajectory.position_and_heading_nk3())
-            if not agent_name in agent_info.keys():
+            if agent_name not in agent_info:
                 agent_info[agent_name] = [agent.get_radius()]
         else:
             traj = np.squeeze(agent["trajectory"])
-            if not agent_name in agent_info.keys():
+            if agent_name not in agent_info:
                 agent_info[agent_name] = [agent["radius"]]
 
         x, y, th = traj

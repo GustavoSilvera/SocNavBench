@@ -203,7 +203,7 @@ def render_scene(plt, p, rgb_image_1mk3, depth_image_1mk1, environment,
     # Obstacles/building traversible
     traversible = environment["map_traversible"]
     human_traversible = None
-    if "human_traversible" in environment.keys():
+    if "human_traversible" in environment:
         assert(p.render_3D)
         human_traversible = environment["human_traversible"]
     # Compute the real_world extent (in meters) of the traversible

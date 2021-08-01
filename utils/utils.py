@@ -458,7 +458,7 @@ def generate_random_pos_in_environment(environment: dict):
     """
     map_scale = float(environment["map_scale"])
     # Combine the occupancy information from the static map and the human
-    if "human_traversible" in environment.keys():
+    if "human_traversible" in environment:
         # in this case there exists a "human" traversible as well, and we
         # don't want to generate one human in the traversible of another
         global_traversible = np.empty(environment["map_traversible"].shape)

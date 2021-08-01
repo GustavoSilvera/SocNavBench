@@ -97,12 +97,12 @@ class AgentState():
     @ staticmethod
     def from_json(json_str: dict):
         name = json_str['name']
-        if 'start_config' in json_str.keys():
+        if 'start_config' in json_str:
             start_config = \
                 generate_config_from_pos_3(json_str['start_config'])
         else:
             start_config = None
-        if 'goal_config' in json_str.keys():
+        if 'goal_config' in json_str:
             goal_config = \
                 generate_config_from_pos_3(json_str['goal_config'])
         else:
@@ -305,7 +305,7 @@ def compute_next_vel(sim_state_prev, sim_state_now, agent_name: str):
 
 def compute_agent_state_velocity(sim_states: list, agent_name: str):
     if len(sim_states) > 1:  # need at least two to compute differences in positions
-        if agent_name in get_all_agents(sim_states[-1]).keys():
+        if agent_name in get_all_agents(sim_states[-1]):
             agent_velocities = []
             for i in range(len(sim_states)):
                 if i > 0:
@@ -328,7 +328,7 @@ def compute_agent_state_acceleration(sim_states: list, agent_name: str, velociti
         # optionally compute velocities as well
         if velocities is None:
             velocities = compute_agent_state_velocity(sim_states, agent_name)
-        if agent_name in get_all_agents(sim_states[-1]).keys():
+        if agent_name in get_all_agents(sim_states[-1]):
             agent_accels = []
             for i, this_vel in enumerate(velocities):
                 if i > 0:

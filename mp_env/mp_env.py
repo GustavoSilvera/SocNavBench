@@ -246,7 +246,7 @@ class Building():
         and body shape at the updated position and speed
         """
         # Remove the previous human
-        if(human.get_name() in self.people.keys()):
+        if(human.get_name() in self.people):
             self.remove_human(human.get_name())
 
         # Load a new human with the updated speed and position

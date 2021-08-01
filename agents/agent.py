@@ -160,7 +160,7 @@ class Agent(AgentBase):
         open loop control or LQR feedback control on a system.
         """
         # The 'plan' is open loop control
-        if 'trajectory' not in self.planner_data.keys():
+        if 'trajectory' not in self.planner_data:
             trajectory, _ = \
                 Agent.apply_control_open_loop(self, self.current_config,
                                               self.planner_data['optimal_control_nk2'],

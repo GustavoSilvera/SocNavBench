@@ -176,7 +176,7 @@ class JoystickBase():
 
     def manage_episodes_name_data(self, episode_names_json: dict):
         # case where there is no simulator yet, just episodes
-        assert('episodes' in episode_names_json.keys())
+        assert('episodes' in episode_names_json)
         self.episode_names = episode_names_json['episodes']
         print("Received episodes:", self.episode_names)
         assert(len(self.episode_names) > 0)
@@ -279,7 +279,7 @@ class JoystickBase():
         from simulators.sim_state import get_agents_from_type
         agents_of_type = get_agents_from_type(world_state, agent_type)
         for a in agents_of_type.keys():
-            if a not in self.agent_log.keys():
+            if a not in self.agent_log:
                 # initialize dict for a specific agent if dosent already exist
                 self.agent_log[a] = {}
             self.agent_log[a][world_state.get_sim_t()] = \
