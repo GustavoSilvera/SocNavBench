@@ -3,8 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 from agents.agent import Agent
-from agents.humans.human import Human
-from agents.humans.human_appearance import HumanAppearance
+from agents.humans.human import Human, HumanAppearance
 from agents.robot_agent import RobotAgent
 from trajectory.trajectory import SystemConfig, Trajectory
 from utils.utils import (

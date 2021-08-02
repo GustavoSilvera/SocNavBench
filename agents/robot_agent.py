@@ -8,10 +8,9 @@ from dotmap import DotMap
 from obstacles.sbpd_map import SBPDMap
 from params.central_params import create_robot_params
 from trajectory.trajectory import SystemConfig
-from utils.utils import conn_recv, generate_config_from_pos_3
+from utils.utils import conn_recv, generate_config_from_pos_3, generate_random_config
 
 from agents.agent import Agent
-from agents.humans.human_configs import HumanConfigs
 from agents.robot_utils import (
     clip_posn,
     clip_vel,
@@ -111,10 +110,9 @@ class RobotAgent(Agent):
         Sample a new robot without knowing any configs or appearance fields
         NOTE: needs environment to produce valid configs
         """
-        configs = HumanConfigs.generate_random_human_config(environment)
         start_goal: Tuple[SystemConfig, SystemConfig] = [
-            list(configs.get_start_config().to_3D_numpy()),
-            list(configs.get_goal_config().to_3D_numpy()),
+            generate_random_config(environment).to_3D_numpy(),
+            generate_random_config(environment).to_3D_numpy(),
         ]
         return cls.generate_robot(start_goal, verbose=False)
 

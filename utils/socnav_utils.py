@@ -67,7 +67,7 @@ def construct_environment(
         # Get the surreal dataset for human generation
         surreal_data = r.d
         # Update the Human's appearance classes to contain the dataset
-        from agents.humans.human_appearance import HumanAppearance
+        from agents.humans.human import HumanAppearance
 
         HumanAppearance.dataset = surreal_data
         human_traversible = np.empty(traversible.shape)

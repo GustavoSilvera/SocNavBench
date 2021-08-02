@@ -1,25 +1,96 @@
-from typing import Any, Dict, List, Optional
+from os import environ
+from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
 from agents.agent import Agent
-from agents.humans.human_appearance import HumanAppearance
-from agents.humans.human_configs import HumanConfigs
 from dotmap import DotMap
 from trajectory.trajectory import SystemConfig
-from utils.utils import generate_config_from_pos_3, generate_name
+from utils.utils import (
+    generate_config_from_pos_3,
+    generate_name,
+    generate_random_config,
+)
+from random import randint
 
-# TODO: combine appearance & configs class to a single file for clarity
+
+class HumanAppearance:
+    # Static variable shared amongst all human appearances
+    # This dataset holds all the SURREAL human textures and meshes
+    dataset = None
+
+    def __init__(self, gender: str, texture: List[str], shape: int, mesh_rng: int):
+        self.gender: str = gender
+        self.shape: int = shape
+        self.texture: List[str] = texture
+        self.mesh_rng: int = mesh_rng
+
+    # Getters for the HumanAppearance class
+    def get_shape(self) -> int:
+        return self.shape
+
+    def get_gender(self) -> str:
+        return self.gender
+
+    def get_texture(self) -> List[str]:
+        return self.texture
+
+    def get_mesh_rng(self) -> int:
+        return self.mesh_rng
+
+    def generate_human_appearance(
+        self, gender: str, texture: List[str], shape: int, mesh_rng: int
+    ):
+        """
+        Sample a new random human from all required features
+        """
+        return HumanAppearance(gender, texture, shape, mesh_rng)
+
+    def create_random_human_identity_from_dataset(self) -> Tuple[str, List[str], int]:
+        """
+        Sample a new human identity, but don't load it into
+        memory
+        """
+        # Set the identity seed. this is used to sample the indentity that generates
+        # the human gender, texture, and body shape
+        identity_rng = np.random.RandomState(randint(1, 1000))
+        # Collecting Humanav dataset
+        dataset = HumanAppearance.dataset
+        if dataset is None:
+            print("\033[31m", "ERROR: can't find Surreal Dataset", "\033[0m")
+            exit(1)  # Failure condition
+        # Using the SBPD dataset to generate a random gender, texture, and body shape
+        (
+            human_gender,
+            human_texture,
+            body_shape,
+        ) = dataset.get_random_human_gender_texture_and_body_shape(identity_rng)
+        return human_gender, human_texture, body_shape
+
+    def generate_rand_human_appearance(self):
+        """
+        Sample a new human from known identity features, but unknown 
+        positional/speed arguments (and mesh rng)
+        """
+        # Set the Mesh seed. This is used to sample the actual mesh to be loaded
+        # which reflects the pose of the human skeleton.
+        mesh_rng = np.random.RandomState(randint(1, 1000))
+
+        gender, texture, shape = self.create_random_human_identity_from_dataset(self)
+
+        return self.generate_human_appearance(self, gender, texture, shape, mesh_rng)
 
 
 class Human(Agent):
     def __init__(
-        self, name: str, appearance: HumanAppearance, start_configs: SystemConfig
+        self,
+        name: str,
+        appearance: HumanAppearance,
+        start_config: SystemConfig,
+        goal_config: SystemConfig,
     ):
         self.name: str = name
         self.appearance: HumanAppearance = appearance
-        super().__init__(
-            start_configs.get_start_config(), start_configs.get_goal_config(), name
-        )
+        super().__init__(start_config, goal_config, name)
 
     # Getters for the Human class
     # NOTE: most of the dynamics/configs implementation is in Agent.py
@@ -27,67 +98,44 @@ class Human(Agent):
     def get_appearance(self) -> HumanAppearance:
         return self.appearance
 
-    @staticmethod
+    @classmethod
     def generate_human(
-        appearance: HumanAppearance,
-        configs: SystemConfig,
+        cls,
+        start_config: Optional[SystemConfig] = None,
+        goal_config: Optional[SystemConfig] = None,
+        environment: Optional[Dict[str, Any]] = None,
+        appearance: Optional[HumanAppearance] = None,
+        generate_appearance: Optional[bool] = False,
         name: Optional[str] = None,
         max_chars: Optional[int] = 20,
         verbose: Optional[bool] = False,
-    ):
+    ) -> Agent:  # technically a Human
         """
         Sample a new random human from all required features
         """
-        human_name: str = name if name is not None else generate_name(max_chars)
+        human_name: str = name if name else generate_name(max_chars)
+        # generate the appearance if requested
+        if appearance is None and generate_appearance:
+            appearance = HumanAppearance.generate_rand_human_appearance(HumanAppearance)
+
+        # generate the configs if environment provided
+        if environment is not None:
+            if start_config is None:
+                start_config = generate_random_config(environment)
+            if goal_config is None:
+                goal_config = generate_random_config(environment)
+
         if verbose:
-            # In order to print more readable arrays
-            np.set_printoptions(precision=2)
-            pos_2 = (configs.get_start_config().position_nk2())[0][0]
-            goal_2 = (configs.get_goal_config().position_nk2())[0][0]
-            print(" Human", human_name, "at", pos_2, "with goal", goal_2)
-        return Human(human_name, appearance, configs)
-
-    @staticmethod
-    def generate_human_with_appearance(
-        appearance: HumanAppearance, environment: Dict[str, Any]
-    ):
-        """
-        Sample a new human with a known appearance at a random 
-        config with a random goal config.
-        """
-        configs = HumanConfigs.generate_random_human_config(environment)
-        return Human.generate_human(appearance, configs)
-
-    @staticmethod
-    def generate_human_with_configs(
-        configs: HumanConfigs,
-        generate_appearance: Optional[bool] = False,
-        name: Optional[str] = None,
-        verbose: Optional[bool] = False,
-    ):
-        """
-        Sample a new random from known configs and a randomized
-        appearance, if any of the configs are None they will be generated
-        """
-        if generate_appearance:
-            appearance = HumanAppearance.generate_rand_human_appearance(HumanAppearance)
-        else:
-            appearance = None
-        return Human.generate_human(appearance, configs, verbose=verbose, name=name)
-
-    @staticmethod
-    def generate_random_human_from_environment(
-        environment: Dict[str, Any], generate_appearance: Optional[bool] = False
-    ):
-        """
-        Sample a new human without knowing any configs or appearance fields
-        NOTE: needs environment to produce valid configs
-        """
-        appearance = None
-        if generate_appearance:
-            appearance = HumanAppearance.generate_rand_human_appearance(HumanAppearance)
-        configs = HumanConfigs.generate_random_human_config(environment)
-        return Human.generate_human(appearance, configs)
+            assert start_config is not None
+            assert goal_config is not None
+            pos_2 = list(start_config.position_nk2()[0][0])
+            goal_2 = list(goal_config.position_nk2()[0][0])
+            print(
+                "Generated human {} starting at {} with goal {}".format(
+                    human_name, pos_2, goal_2
+                )
+            )
+        return cls(human_name, appearance, start_config, goal_config)
 
     @staticmethod
     def generate_humans(
@@ -97,17 +145,19 @@ class Human(Agent):
         Generate and add num_humans number of randomly generated humans to the simulator
         """
         num_gen_humans: int = min(len(starts), len(goals))
-        print("Generating auto humans:", num_gen_humans)
+        print("Generating {} autonomous human agents".format(num_gen_humans))
 
         generated_humans: List[Agent] = []
         for i in range(num_gen_humans):
             start_config = generate_config_from_pos_3(starts[i])
             goal_config = generate_config_from_pos_3(goals[i])
-            start_goal_configs = HumanConfigs(start_config, goal_config)
             human_i_name = "auto_%04d" % i
-            # Generates a random human from the environment
-            new_human_i = Human.generate_human_with_configs(
-                start_goal_configs, generate_appearance=p.render_3D, name=human_i_name
+            # Generates a new human from the configs
+            new_human_i = Human.generate_human(
+                start_config=start_config,
+                goal_config=goal_config,
+                generate_appearance=p.render_3D,
+                name=human_i_name,
             )
             # Input human fields into simulator
             generated_humans.append(new_human_i)

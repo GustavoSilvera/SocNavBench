@@ -205,8 +205,8 @@ def main_test() -> None:
     # generate and add random humans
     for _ in range(4):
         # Generates a random human from the environment
-        new_human_i = Human.generate_random_human_from_environment(
-            environment, generate_appearance=False
+        new_human_i = Human.generate_human(
+            environment=environment, generate_appearance=False
         )
         simulator.add_agent(new_human_i)
     # initialize simulator fields

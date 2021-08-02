@@ -1,7 +1,7 @@
 from __future__ import print_function
 import numpy as np
 import sys
-from agents.humans.human_appearance import HumanAppearance
+from agents.humans.human import HumanAppearance
 if sys.version_info[0] == 2:
     from . import map_utils as mu
 else:

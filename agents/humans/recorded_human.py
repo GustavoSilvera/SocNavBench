@@ -5,9 +5,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from agents.agent import Agent
-from agents.humans.human import Human
-from agents.humans.human_appearance import HumanAppearance
-from agents.humans.human_configs import HumanConfigs
+from agents.humans.human import Human, HumanAppearance
 from dotmap import DotMap
 from simulators.sim_state import SimState
 from trajectory.trajectory import SystemConfig
@@ -42,13 +40,12 @@ class PrerecordedHuman(Human):
         self.xinterp: Callable[[float], float] = interps[0]
         self.yinterp: Callable[[float], float] = interps[1]
         self.thinterp: Callable[[float], float] = interps[2]
-        init_configs = HumanConfigs(posn_data[0], posn_data[-1])
         if generate_appearance:
             appearance = HumanAppearance.generate_rand_human_appearance(HumanAppearance)
         else:
             appearance = None
         self.relative_diff: float = 0.0  # how much time the agent will spend stopped
-        super().__init__(name, appearance, init_configs)
+        super().__init__(name, appearance, posn_data[0], posn_data[-1])
 
     def get_start_time(self) -> float:
         return self.t_data[0]
