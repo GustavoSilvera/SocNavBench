@@ -1,7 +1,8 @@
 import numpy as np
-from metrics import cost_functions
-from simulators.simulator import Simulator
 import pandas as pd
+from simulators.simulator import Simulator
+
+from metrics import cost_functions
 
 
 # meta

@@ -1,13 +1,15 @@
-import numpy as np
 from random import randint
-from joystick_py.joystick_base import JoystickBase
 from typing import List, Tuple
+
+import numpy as np
+
+from joystick_py.joystick_base import JoystickBase
 
 
 class JoystickRandom(JoystickBase):
     def __init__(self):
         # our 'positions' are modeled as (x, y, theta)
-        self.robot_posn: np.ndarray = None             # current position of the robot
+        self.robot_posn: np.ndarray = None  # current position of the robot
         super().__init__("RandomPlanner")  # parent class needs to know the algorithm
 
     def joystick_sense(self) -> None:
@@ -17,33 +19,34 @@ class JoystickRandom(JoystickBase):
         self.joystick_on = self.listen_once()
         # NOTE: self.sim_state_now is updated with the current world state
         # can get agent/robot position info from it, see simulators/sim_state.py
-        self.robot_posn = self.sim_state_now.get_robot().get_current_config().to_3D_numpy()
+        self.robot_posn = (
+            self.sim_state_now.get_robot().get_current_config().to_3D_numpy()
+        )
 
     def joystick_plan(self) -> None:
         # use the robot's current position from the newly updated self.sim_state_now
         # to plan random commands within viable range of the robot's system dynamics
 
         # frequency of actions per joystick refresh
-        num_actions_per_dt: int = \
-            int(np.floor(self.sim_dt / self.joystick_params.dt))
+        num_actions_per_dt: int = int(np.floor(self.sim_dt / self.joystick_params.dt))
 
         # send either posntional or velocity commands depending on param status
         if self.joystick_params.use_system_dynamics:
             self.input = self.random_vel_cmds(num_actions_per_dt)
         else:
-            self.input = self.random_posn_cmds(num_actions_per_dt,
-                                               self.robot_posn)
+            self.input = self.random_posn_cmds(num_actions_per_dt, self.robot_posn)
 
     def joystick_act(self) -> None:
         if not self.joystick_on:
             return
         # send random commands to the robot
-        self.send_cmds(self.input,
-                       send_vel_cmds=self.joystick_params.use_system_dynamics)
+        self.send_cmds(
+            self.input, send_vel_cmds=self.joystick_params.use_system_dynamics
+        )
 
     def update_loop(self) -> None:
         super().pre_update()  # pre-update initialization
-        while(self.joystick_on):
+        while self.joystick_on:
             # gather information about the world state based off the simulator
             self.joystick_sense()
 
@@ -58,8 +61,9 @@ class JoystickRandom(JoystickBase):
     """BEGIN RANDOM COMMAND FUNCTIONS"""
 
     def random_cmd(self, bounds: Tuple[float, float], precision: int = 3) -> int:
-        return randint(int(bounds[0] * precision),
-                       int(bounds[1] * precision)) / precision
+        return (
+            randint(int(bounds[0] * precision), int(bounds[1] * precision)) / precision
+        )
 
     def random_vel_cmds(self, freq: int) -> List[float]:
         velocity_cmds: List[float] = []
@@ -72,7 +76,9 @@ class JoystickRandom(JoystickBase):
         # send the data in lists based off the simulator/joystick refresh rate
         return velocity_cmds
 
-    def random_posn_cmds(self, freq: int, current_posn: List[float]) -> List[Tuple[float, float, float, float]]:
+    def random_posn_cmds(
+        self, freq: int, current_posn: List[float]
+    ) -> List[Tuple[float, float, float, float]]:
         # generate a random position within range of viable velocity
         new_posns: List[Tuple[float, float, float, float]] = []
         for _ in range(freq):

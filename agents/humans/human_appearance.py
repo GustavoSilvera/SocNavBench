@@ -1,9 +1,10 @@
 from random import randint
-import numpy as np
 from typing import List, Tuple
 
+import numpy as np
 
-class HumanAppearance():
+
+class HumanAppearance:
     # Static variable shared amongst all human appearances
     # This dataset holds all the SURREAL human textures and meshes
     dataset = None
@@ -27,7 +28,9 @@ class HumanAppearance():
     def get_mesh_rng(self) -> int:
         return self.mesh_rng
 
-    def generate_human_appearance(self, gender: str, texture: List[str], shape: int, mesh_rng: int):
+    def generate_human_appearance(
+        self, gender: str, texture: List[str], shape: int, mesh_rng: int
+    ):
         """
         Sample a new random human from all required features
         """
@@ -44,12 +47,14 @@ class HumanAppearance():
         # Collecting Humanav dataset
         dataset = HumanAppearance.dataset
         if dataset is None:
-            print('\033[31m', "ERROR: can't find Surreal Dataset", '\033[0m')
+            print("\033[31m", "ERROR: can't find Surreal Dataset", "\033[0m")
             exit(1)  # Failure condition
         # Using the SBPD dataset to generate a random gender, texture, and body shape
-        human_gender, human_texture, body_shape = \
-            dataset.get_random_human_gender_texture_and_body_shape(
-                identity_rng)
+        (
+            human_gender,
+            human_texture,
+            body_shape,
+        ) = dataset.get_random_human_gender_texture_and_body_shape(identity_rng)
         return human_gender, human_texture, body_shape
 
     def generate_rand_human_appearance(self):
@@ -61,7 +66,6 @@ class HumanAppearance():
         # which reflects the pose of the human skeleton.
         mesh_rng = np.random.RandomState(randint(1, 1000))
 
-        gender, texture, shape = \
-            self.create_random_human_identity_from_dataset(self)
+        gender, texture, shape = self.create_random_human_identity_from_dataset(self)
 
         return self.generate_human_appearance(self, gender, texture, shape, mesh_rng)

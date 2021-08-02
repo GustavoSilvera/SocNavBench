@@ -1,13 +1,18 @@
-from agents.robot_agent import RobotAgent
-from trajectory.trajectory import SystemConfig, Trajectory
-import numpy as np
 import json
-from utils.utils import generate_config_from_pos_3, euclidean_dist2
-from utils.utils import color_red, color_reset
-from typing import Any, List, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 from agents.agent import Agent
 from agents.humans.human import Human
 from agents.humans.human_appearance import HumanAppearance
+from agents.robot_agent import RobotAgent
+from trajectory.trajectory import SystemConfig, Trajectory
+from utils.utils import (
+    color_red,
+    color_reset,
+    euclidean_dist2,
+    generate_config_from_pos_3,
+)
 
 """ These are smaller "wrapper" classes that are visible by other
 gen_agents/humans and saved during state deepcopies
@@ -15,10 +20,21 @@ NOTE: they are all READ-ONLY (only getters)
 """
 
 
-class AgentState():
-    def __init__(self, a: Agent = None, name: str = None, goal_config: SystemConfig = None, start_config: SystemConfig = None,
-                 current_config: SystemConfig = None, trajectory: Trajectory = None, collided: bool = False, end_acting: bool = False,
-                 collision_cooldown: int = -1, radius: int = 0, color: str = None):
+class AgentState:
+    def __init__(
+        self,
+        a: Agent = None,
+        name: str = None,
+        goal_config: SystemConfig = None,
+        start_config: SystemConfig = None,
+        current_config: SystemConfig = None,
+        trajectory: Trajectory = None,
+        collided: bool = False,
+        end_acting: bool = False,
+        collision_cooldown: int = -1,
+        radius: int = 0,
+        color: str = None,
+    ):
         """Initialize an AgentState with either an Agent instance (a) or all the individual fields"""
         if a is not None:
             self.name: str = a.get_name()
@@ -80,50 +96,54 @@ class AgentState():
         name_json = SimState.to_json_type(self.name)
         # NOTE: the configs are just being serialized with their 3D positions
         if include_start_goal:
-            start_json = SimState.to_json_type(
-                self.get_start_config().to_3D_numpy())
-            goal_json = SimState.to_json_type(
-                self.get_goal_config().to_3D_numpy())
-        current_json = SimState.to_json_type(
-            self.get_current_config().to_3D_numpy())
+            start_json = SimState.to_json_type(self.get_start_config().to_3D_numpy())
+            goal_json = SimState.to_json_type(self.get_goal_config().to_3D_numpy())
+        current_json = SimState.to_json_type(self.get_current_config().to_3D_numpy())
         # trajectory_json = "None"
         radius_json = self.radius
         json_dict: Dict[str, str] = {}
-        json_dict['name'] = name_json
+        json_dict["name"] = name_json
         # NOTE: the start and goal (of the robot) are only sent when the environment is sent
         if include_start_goal:
-            json_dict['start_config'] = start_json
-            json_dict['goal_config'] = goal_json
-        json_dict['current_config'] = current_json
+            json_dict["start_config"] = start_json
+            json_dict["goal_config"] = goal_json
+        json_dict["current_config"] = current_json
         # json_dict['trajectory'] = trajectory_json
-        json_dict['radius'] = radius_json
+        json_dict["radius"] = radius_json
         # returns array (python list) to be json'd in_simstate
         return json_dict
 
-    @ staticmethod
+    @staticmethod
     def from_json(json_str: Dict[str, str]):
-        name: str = json_str['name']
-        if 'start_config' in json_str:
-            start_config = \
-                generate_config_from_pos_3(json_str['start_config'])
+        name: str = json_str["name"]
+        if "start_config" in json_str:
+            start_config = generate_config_from_pos_3(json_str["start_config"])
         else:
             start_config = None
-        if 'goal_config' in json_str:
-            goal_config = \
-                generate_config_from_pos_3(json_str['goal_config'])
+        if "goal_config" in json_str:
+            goal_config = generate_config_from_pos_3(json_str["goal_config"])
         else:
             goal_config = None
-        current_config = \
-            generate_config_from_pos_3(json_str['current_config'])
+        current_config = generate_config_from_pos_3(json_str["current_config"])
         trajectory = None  # unable to recreate trajectory
-        radius = json_str['radius']
+        radius = json_str["radius"]
         collision_cooldown = -1
         collided = False
         end_acting = False
         color = None
-        return AgentState(None, name, goal_config, start_config, current_config,
-                          trajectory, collided, end_acting, collision_cooldown,
-                          radius, color)
+        return AgentState(
+            None,
+            name,
+            goal_config,
+            start_config,
+            current_config,
+            trajectory,
+            collided,
+            end_acting,
+            collision_cooldown,
+            radius,
+            color,
+        )
 
 
 class HumanState(AgentState):
@@ -136,11 +156,19 @@ class HumanState(AgentState):
         return self.appearance
 
 
-class SimState():
-    def __init__(self, environment: Optional[Dict[str, float or int or np.ndarray]] = None, pedestrians: Optional[Dict[str, Agent]] = None,
-                 robots: Dict[str, RobotAgent] = None, sim_t: Optional[float] = None, wall_t: Optional[float] = None,
-                 delta_t: Optional[float] = None, episode_name: Optional[str] = None, max_time: Optional[float] = None,
-                 ped_collider: Optional[str] = ""):
+class SimState:
+    def __init__(
+        self,
+        environment: Optional[Dict[str, float or int or np.ndarray]] = None,
+        pedestrians: Optional[Dict[str, Agent]] = None,
+        robots: Dict[str, RobotAgent] = None,
+        sim_t: Optional[float] = None,
+        wall_t: Optional[float] = None,
+        delta_t: Optional[float] = None,
+        episode_name: Optional[str] = None,
+        max_time: Optional[float] = None,
+        ped_collider: Optional[str] = "",
+    ):
         self.environment: Dict[str, float or int or np.ndarray] = environment
         # no distinction between prerecorded and auto agents
         # new dict that the joystick will be sent
@@ -166,7 +194,9 @@ class SimState():
     def get_robots(self) -> Dict[str, RobotAgent]:
         return self.robots
 
-    def get_robot(self, index: Optional[int] = 0, name: Optional[str] = None) -> RobotAgent:
+    def get_robot(
+        self, index: Optional[int] = 0, name: Optional[str] = None
+    ) -> RobotAgent:
         if name:  # index robot by name
             return self.robots[name]
         return list(self.robots.values())[index]  # index robot by posn
@@ -192,21 +222,27 @@ class SimState():
     def get_collider(self) -> str:
         return self.ped_collider
 
-    def get_all_agents(self, include_robot: Optional[bool] = False) -> Dict[str, Agent or RobotAgent]:
+    def get_all_agents(
+        self, include_robot: Optional[bool] = False
+    ) -> Dict[str, Agent or RobotAgent]:
         all_agents = {}
         all_agents.update(self.get_pedestrians())
         if include_robot:
             all_agents.update(self.get_robots())
         return all_agents
 
-    def to_json(self, robot_on: Optional[bool] = True, send_metadata: Optional[bool] = False, termination_cause: Optional[str] = None) -> str:
+    def to_json(
+        self,
+        robot_on: Optional[bool] = True,
+        send_metadata: Optional[bool] = False,
+        termination_cause: Optional[str] = None,
+    ) -> str:
         json_dict: Dict[str, float or int or np.ndarray] = {}
-        json_dict['robot_on'] = robot_on  # true or false
+        json_dict["robot_on"] = robot_on  # true or false
         sim_t_json = self.get_sim_t()
         if robot_on:  # only send the world if the robot is ON
             if send_metadata:
-                environment_json = \
-                    SimState.to_json_dict(self.get_environment())
+                environment_json = SimState.to_json_dict(self.get_environment())
                 episode_json = self.get_episode_name()
                 episode_max_time_json = self.get_episode_max_time()
             else:
@@ -214,50 +250,50 @@ class SimState():
                 episode_json = {}
                 episode_max_time_json = {}
             # serialize all other fields
-            ped_json = \
-                SimState.to_json_dict(self.get_pedestrians())
+            ped_json = SimState.to_json_dict(self.get_pedestrians())
             # NOTE: the robot only includes its start/goal posn if sending metadata
-            robots_json = \
-                SimState.to_json_dict(self.get_robots(),
-                                      include_start_goal=send_metadata)
+            robots_json = SimState.to_json_dict(
+                self.get_robots(), include_start_goal=send_metadata
+            )
             delta_t_json = self.get_delta_t()
             # append them to the json dictionary
-            json_dict['environment'] = environment_json
-            json_dict['pedestrians'] = ped_json
-            json_dict['robots'] = robots_json
-            json_dict['delta_t'] = delta_t_json
-            json_dict['episode_name'] = episode_json
-            json_dict['episode_max_time'] = episode_max_time_json
+            json_dict["environment"] = environment_json
+            json_dict["pedestrians"] = ped_json
+            json_dict["robots"] = robots_json
+            json_dict["delta_t"] = delta_t_json
+            json_dict["episode_name"] = episode_json
+            json_dict["episode_max_time"] = episode_max_time_json
         else:
-            json_dict['termination_cause'] = termination_cause
+            json_dict["termination_cause"] = termination_cause
         # sim_state should always have time
-        json_dict['sim_t'] = sim_t_json
+        json_dict["sim_t"] = sim_t_json
         return json.dumps(json_dict, indent=1)
 
-    @ staticmethod
-    def init_agent_dict(json_str_dict: Dict[str, Dict[str, AgentState]]) -> Dict[str, Dict[str, AgentState]]:
+    @staticmethod
+    def init_agent_dict(
+        json_str_dict: Dict[str, Dict[str, AgentState]]
+    ) -> Dict[str, Dict[str, AgentState]]:
         agent_dict: Dict[str, AgentState] = {}
         for d in json_str_dict.keys():
             agent_dict[d] = AgentState.from_json(json_str_dict[d])
         return agent_dict
 
-    @ staticmethod
+    @staticmethod
     def from_json(json_str: Dict[str, str or int or float]):
         new_state = SimState()
-        new_state.environment = json_str['environment']
-        new_state.pedestrians = \
-            SimState.init_agent_dict(json_str['pedestrians'])
-        new_state.robots = SimState.init_agent_dict(json_str['robots'])
-        new_state.sim_t = json_str['sim_t']
-        new_state.delta_t = json_str['delta_t']
-        new_state.robot_on = json_str['robot_on']
-        new_state.episode_name = json_str['episode_name']
-        new_state.episode_max_time = json_str['episode_max_time']
+        new_state.environment = json_str["environment"]
+        new_state.pedestrians = SimState.init_agent_dict(json_str["pedestrians"])
+        new_state.robots = SimState.init_agent_dict(json_str["robots"])
+        new_state.sim_t = json_str["sim_t"]
+        new_state.delta_t = json_str["delta_t"]
+        new_state.robot_on = json_str["robot_on"]
+        new_state.episode_name = json_str["episode_name"]
+        new_state.episode_max_time = json_str["episode_max_time"]
         new_state.wall_t = None
         new_state.ped_collider = ""
         return new_state
 
-    @ staticmethod
+    @staticmethod
     def to_json_type(elem: Any, include_start_goal=False) -> int or str or Dict:
         """ Converts an element to a json serializable type. """
         if isinstance(elem, np.int64) or isinstance(elem, np.int32):
@@ -274,20 +310,25 @@ class SimState():
         else:
             return str(elem)
 
-    @ staticmethod
-    def to_json_dict(param_dict: Dict[str, Any], include_start_goal: Optional[bool] = False) -> Dict[str, int or str or AgentState]:
+    @staticmethod
+    def to_json_dict(
+        param_dict: Dict[str, Any], include_start_goal: Optional[bool] = False
+    ) -> Dict[str, int or str or AgentState]:
         """ Converts params_dict to a json serializable dict."""
         json_dict: Dict[str, int or str or AgentState] = {}
         for key in param_dict.keys():
-            json_dict[key] = SimState.to_json_type(param_dict[key],
-                                                   include_start_goal=include_start_goal)
+            json_dict[key] = SimState.to_json_type(
+                param_dict[key], include_start_goal=include_start_goal
+            )
         return json_dict
 
 
 """BEGIN SimState utils"""
 
 
-def get_all_agents(sim_state: Dict[float, SimState], include_robot: Optional[bool] = False) -> Dict[str, Agent or RobotAgent]:
+def get_all_agents(
+    sim_state: Dict[float, SimState], include_robot: Optional[bool] = False
+) -> Dict[str, Agent or RobotAgent]:
     all_agents = {}
     all_agents.update(get_agents_from_type(sim_state, "pedestrians"))
     if include_robot:
@@ -296,13 +337,15 @@ def get_all_agents(sim_state: Dict[float, SimState], include_robot: Optional[boo
 
 
 def get_agents_from_type(sim_state: SimState, agent_type: str) -> Dict[str, Agent]:
-    if callable(getattr(sim_state, 'get_' + agent_type, None)):
-        getter_agent_type = getattr(sim_state, 'get_' + agent_type, None)
+    if callable(getattr(sim_state, "get_" + agent_type, None)):
+        getter_agent_type = getattr(sim_state, "get_" + agent_type, None)
         return getter_agent_type()
     return {}  # empty dict
 
 
-def compute_next_vel(sim_state_prev: SimState, sim_state_now: SimState, agent_name: str) -> float:
+def compute_next_vel(
+    sim_state_prev: SimState, sim_state_now: SimState, agent_name: str
+) -> float:
     old_agent = sim_state_prev.get_all_agents()[agent_name]
     old_pos = old_agent.get_current_config().to_3D_numpy()
     new_agent = sim_state_now.get_all_agents()[agent_name]
@@ -312,7 +355,9 @@ def compute_next_vel(sim_state_prev: SimState, sim_state_now: SimState, agent_na
     return euclidean_dist2(old_pos, new_pos) / delta_t
 
 
-def compute_agent_state_velocity(sim_states: List[SimState], agent_name: str) -> List[float]:
+def compute_agent_state_velocity(
+    sim_states: List[SimState], agent_name: str
+) -> List[float]:
     if len(sim_states) > 1:  # need at least two to compute differences in positions
         if agent_name in get_all_agents(sim_states[-1]):
             agent_velocities = []
@@ -326,13 +371,20 @@ def compute_agent_state_velocity(sim_states: List[SimState], agent_name: str) ->
                     agent_velocities.append(0.0)  # initial velocity is 0
             return agent_velocities
         else:
-            print("%sAgent" % color_red, agent_name,
-                  "is not in the SimStates%s" % color_reset)
+            print(
+                "%sAgent" % color_red,
+                agent_name,
+                "is not in the SimStates%s" % color_reset,
+            )
     else:
         return []
 
 
-def compute_agent_state_acceleration(sim_states: List[SimState], agent_name: str, velocities: Optional[List[float]] = None) -> List[float]:
+def compute_agent_state_acceleration(
+    sim_states: List[SimState],
+    agent_name: str,
+    velocities: Optional[List[float]] = None,
+) -> List[float]:
     if len(sim_states) > 1:  # need at least two to compute differences in velocities
         # optionally compute velocities as well
         if velocities is None:
@@ -355,8 +407,11 @@ def compute_agent_state_acceleration(sim_states: List[SimState], agent_name: str
                         break
             return agent_accels
         else:
-            print("%sAgent" % color_red, agent_name,
-                  "is not in the SimStates%s" % color_reset)
+            print(
+                "%sAgent" % color_red,
+                agent_name,
+                "is not in the SimStates%s" % color_reset,
+            )
     else:
         return []
 
@@ -364,9 +419,10 @@ def compute_agent_state_acceleration(sim_states: List[SimState], agent_name: str
 def compute_all_velocities(sim_states: List[SimState]) -> Dict[str, float]:
     all_velocities = {}
     for agent_name in get_all_agents(sim_states[-1]).keys():
-        assert(isinstance(agent_name, str))  # keyed by name
-        all_velocities[agent_name] = \
-            compute_agent_state_velocity(sim_states, agent_name)
+        assert isinstance(agent_name, str)  # keyed by name
+        all_velocities[agent_name] = compute_agent_state_velocity(
+            sim_states, agent_name
+        )
     return all_velocities
 
 
@@ -374,7 +430,8 @@ def compute_all_accelerations(sim_states: List[SimState]) -> Dict[str, float]:
     all_accels = {}
     # TODO: add option of providing precomputed velocities list
     for agent_name in get_all_agents(sim_states[-1]).keys():
-        assert(isinstance(agent_name, str))  # keyed by name
+        assert isinstance(agent_name, str)  # keyed by name
         all_accels[agent_name] = compute_agent_state_acceleration(
-            sim_states, agent_name)
+            sim_states, agent_name
+        )
     return all_accels

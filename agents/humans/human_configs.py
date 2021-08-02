@@ -1,6 +1,7 @@
-from utils.utils import *
-from trajectory.trajectory import SystemConfig
 from typing import Any, Dict
+
+from trajectory.trajectory import SystemConfig
+from utils.utils import *
 
 
 class HumanConfigs:
@@ -26,8 +27,9 @@ class HumanConfigs:
         return HumanConfigs(start_config, goal_config)
 
     @staticmethod
-    def generate_random_human_config_from_start(start_config: SystemConfig,
-                                                environment: Dict[str, Any]):
+    def generate_random_human_config_from_start(
+        start_config: SystemConfig, environment: Dict[str, Any]
+    ):
         """
         Generate a human with a random goal config given a known start
         config. The generated start config will be near center by a threshold
@@ -36,8 +38,9 @@ class HumanConfigs:
         return HumanConfigs.generate_human_config(start_config, goal_config)
 
     @staticmethod
-    def generate_random_human_config_with_goal(goal_config: SystemConfig,
-                                               environment: Dict[str, Any]):
+    def generate_random_human_config_with_goal(
+        goal_config: SystemConfig, environment: Dict[str, Any]
+    ):
         """
         Generate a human with a random start config given a known goal
         config. The generated start config will be near center by a threshold

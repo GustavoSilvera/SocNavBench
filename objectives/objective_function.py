@@ -1,4 +1,5 @@
 import numpy as np
+
 # from objectives.personal_space_cost import PersonalSpaceCost
 
 
@@ -48,19 +49,21 @@ class ObjectiveFunction(object):
         sim_states are only relevant for personal_space cost functions
         """
         objective_values_by_tag = self.evaluate_function_by_objective(
-            trajectory, sim_state_hist)
-        objective_function_values = 0.
+            trajectory, sim_state_hist
+        )
+        objective_function_values = 0.0
         for tag, objective_values in objective_values_by_tag:
             objective_function_values += self._reduce_objective_values(
-                trajectory, objective_values)
+                trajectory, objective_values
+            )
         return objective_function_values
 
     def _reduce_objective_values(self, trajectory, objective_values):
         """Reduce objective_values according to
         self.params.obj_type."""
-        if self.params.obj_type == 'mean':
+        if self.params.obj_type == "mean":
             res = np.mean(objective_values, axis=1)
-        elif self.params.obj_type == 'valid_mean':
+        elif self.params.obj_type == "valid_mean":
             valid_mask_nk = trajectory.valid_mask_nk
             obj_sum = np.sum(objective_values * valid_mask_nk, axis=1)
             res = obj_sum / trajectory.valid_horizons_n1[:, 0]

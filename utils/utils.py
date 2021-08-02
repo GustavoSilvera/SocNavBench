@@ -1,23 +1,23 @@
-import os
-import json
 import copy
-import numpy as np
-import shutil
-from dotmap import DotMap
-from random import random
-import string
+import json
+import os
 import random
+import shutil
+import string
 import time
-from trajectory.trajectory import SystemConfig
-from typing import List, Dict, Tuple, Optional
-from matplotlib import pyplot, figure
+from typing import Dict, List, Optional, Tuple
 
-color_orange = '\033[33m'
-color_green = '\033[32m'
-color_red = '\033[31m'
-color_blue = '\033[36m'
-color_yellow = '\033[35m'
-color_reset = '\033[00m'
+import numpy as np
+from dotmap import DotMap
+from matplotlib import figure, pyplot
+from trajectory.trajectory import SystemConfig
+
+color_orange = "\033[33m"
+color_green = "\033[32m"
+color_red = "\033[31m"
+color_blue = "\033[36m"
+color_yellow = "\033[35m"
+color_reset = "\033[00m"
 
 
 def ensure_odd(integer: int) -> bool:
@@ -34,11 +34,10 @@ def render_angle_frequency(p: DotMap) -> int:
 
 def log_dict_as_json(params: DotMap, filename: str) -> None:
     """Save params (either a DotMap object or a python dictionary) to a file in json format"""
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         if isinstance(params, DotMap):
             params = params.toDict()
-        param_dict_serializable = _to_json_serializable_dict(
-            copy.deepcopy(params))
+        param_dict_serializable = _to_json_serializable_dict(copy.deepcopy(params))
         json.dump(param_dict_serializable, f, indent=4, sort_keys=True)
 
 
@@ -52,6 +51,7 @@ def _to_json_serializable_dict(param_dict: Dict[str, str]) -> Dict[str, int or s
     Args:
         param_dict (dict): the dictionary to be serialized
     """
+
     def _to_serializable_type(elem):
         """ Converts an element to a json serializable type. """
         if isinstance(elem, np.int64) or isinstance(elem, np.int32):
@@ -64,6 +64,7 @@ def _to_json_serializable_dict(param_dict: Dict[str, str]) -> Dict[str, int or s
             return str(elem)
         else:
             return str(elem)
+
     for key in param_dict.keys():
         param_dict[key] = _to_serializable_type(param_dict[key])
     return param_dict
@@ -81,7 +82,7 @@ def euclidean_dist2(p1: List[float], p2: List[float]) -> float:
     """
     diff_x: float = p1[0] - p2[0]
     diff_y: float = p1[1] - p2[1]
-    return np.sqrt(diff_x**2 + diff_y**2)
+    return np.sqrt(diff_x ** 2 + diff_y ** 2)
 
 
 def absmax(x: np.ndarray) -> float or int:
@@ -98,7 +99,7 @@ def touch(path: str) -> None:
     basedir: str = os.path.dirname(path)
     if not os.path.exists(basedir):
         os.makedirs(basedir)
-    with open(path, 'a'):
+    with open(path, "a"):
         os.utime(path, None)
 
 
@@ -117,7 +118,8 @@ def natural_sort(l: List[float or int]) -> List[str or int]:
         return int(text) if text.isdigit() else text.lower()
 
     def alphanum_key(key: str) -> List[int or str]:
-        return [convert(c) for c in re.split('([0-9]+)', key)]
+        return [convert(c) for c in re.split("([0-9]+)", key)]
+
     return sorted(l, key=alphanum_key)
 
 
@@ -130,10 +132,9 @@ def generate_name(max_chars: int) -> str:
     Returns:
         A string of length max_chars with random ascii characters
     """
-    return "".join([
-        random.choice(string.ascii_letters + string.digits)
-        for _ in range(max_chars)
-    ])
+    return "".join(
+        [random.choice(string.ascii_letters + string.digits) for _ in range(max_chars)]
+    )
 
 
 def conn_recv(connection, buffr_amnt: int = 1024) -> Tuple[bytes, int]:
@@ -151,11 +152,11 @@ def conn_recv(connection, buffr_amnt: int = 1024) -> Tuple[bytes, int]:
     response_len: int = 0
     while True:
         chunk = connection.recv(buffr_amnt)
-        if chunk == b'':
+        if chunk == b"":
             break
         chunks.append(chunk)
         response_len += len(chunk)
-    data: bytes = b''.join(chunks)
+    data: bytes = b"".join(chunks)
     return data, response_len
 
 
@@ -171,7 +172,7 @@ def delete_if_exists(dirname: str) -> None:
 
 def check_dotmap_equality(d1: DotMap, d2: DotMap) -> bool:
     """Check equality on nested map objects that all keys and values match."""
-    assert(len(set(d1.keys()).difference(set(d2.keys()))) == 0)
+    assert len(set(d1.keys()).difference(set(d2.keys()))) == 0
     equality: List[bool] = [True] * len(d1.keys())
     for i, key in enumerate(d1.keys()):
         d1_attr = getattr(d1, key)
@@ -182,14 +183,20 @@ def check_dotmap_equality(d1: DotMap, d2: DotMap) -> bool:
 
 
 def configure_plotting() -> None:
-    pyplot.plot.style.use('ggplot')
+    pyplot.plot.style.use("ggplot")
 
 
-def subplot2(plt: pyplot.plot, Y_X: Tuple[int, int], sz_y_sz_x: Optional[Tuple[int, int]] = (10, 10), space_y_x: Optional[Tuple[int, int]] = (0.1, 0.1), T: Optional[bool] = False) -> Tuple[figure.Figure, pyplot.axes, List[pyplot.axes]]:
+def subplot2(
+    plt: pyplot.plot,
+    Y_X: Tuple[int, int],
+    sz_y_sz_x: Optional[Tuple[int, int]] = (10, 10),
+    space_y_x: Optional[Tuple[int, int]] = (0.1, 0.1),
+    T: Optional[bool] = False,
+) -> Tuple[figure.Figure, pyplot.axes, List[pyplot.axes]]:
     Y, X = Y_X
     sz_y, sz_x = sz_y_sz_x
     hspace, wspace = space_y_x
-    plt.rcParams['figure.figsize'] = (X * sz_x, Y * sz_y)
+    plt.rcParams["figure.figsize"] = (X * sz_x, Y * sz_y)
     fig, axes = plt.subplots(Y, X, squeeze=False)
     plt.subplots_adjust(wspace=wspace, hspace=hspace)
     if T:
@@ -226,33 +233,48 @@ def color_print(color: str) -> str:
 
 def iter_print(l: List or Dict) -> str:
     if isinstance(l[0], float):
-        return ','.join(["{0: 0.2f}".format(i) for i in l])
+        return ",".join(["{0: 0.2f}".format(i) for i in l])
     # return string
-    return ','.join([str(i) for i in l])
+    return ",".join([str(i) for i in l])
 
 
 """ BEGIN configs functions """
 
 
-def generate_config_from_pos_3(pos_3: np.ndarray, dt: Optional[float] = 0.1, v: Optional[float] = 0, w: Optional[float] = 0) -> SystemConfig:
+def generate_config_from_pos_3(
+    pos_3: np.ndarray,
+    dt: Optional[float] = 0.1,
+    v: Optional[float] = 0,
+    w: Optional[float] = 0,
+) -> SystemConfig:
     pos_n11 = np.array([[[pos_3[0], pos_3[1]]]], dtype=np.float32)
     heading_n11 = np.array([[[pos_3[2]]]], dtype=np.float32)
     speed_nk1 = np.ones((1, 1, 1), dtype=np.float32) * v
     angular_speed_nk1 = np.ones((1, 1, 1), dtype=np.float32) * w
-    return SystemConfig(dt, 1, 1,
-                        position_nk2=pos_n11,
-                        heading_nk1=heading_n11,
-                        speed_nk1=speed_nk1,
-                        angular_speed_nk1=angular_speed_nk1,
-                        variable=False)
+    return SystemConfig(
+        dt,
+        1,
+        1,
+        position_nk2=pos_n11,
+        heading_nk1=heading_n11,
+        speed_nk1=speed_nk1,
+        angular_speed_nk1=angular_speed_nk1,
+        variable=False,
+    )
 
 
-def generate_random_config(environment: Dict[str, int or float or np.ndarray], dt: Optional[float] = 0.1, max_vel: Optional[float] = 0.6) -> SystemConfig:
+def generate_random_config(
+    environment: Dict[str, int or float or np.ndarray],
+    dt: Optional[float] = 0.1,
+    max_vel: Optional[float] = 0.6,
+) -> SystemConfig:
     pos_3: np.ndarray = generate_random_pos_in_environment(environment)
     return generate_config_from_pos_3(pos_3, dt=dt, v=max_vel)
 
 
-def generate_random_pos_3(center: np.ndarray, xdiff: Optional[float] = 3.0, ydiff: Optional[float] = 3.0) -> np.ndarray:
+def generate_random_pos_3(
+    center: np.ndarray, xdiff: Optional[float] = 3.0, ydiff: Optional[float] = 3.0
+) -> np.ndarray:
     """
     Generates a random position near the center within an elliptical radius of xdiff and ydiff
     """
@@ -262,8 +284,12 @@ def generate_random_pos_3(center: np.ndarray, xdiff: Optional[float] = 3.0, ydif
     return np.add(center, np.array([offset_x, offset_y, offset_theta]))
 
 
-def within_traversible(new_pos: np.ndarray, traversible: np.ndarray, map_scale: float,
-                       stroked_radius: Optional[bool] = False) -> bool:
+def within_traversible(
+    new_pos: np.ndarray,
+    traversible: np.ndarray,
+    map_scale: float,
+    stroked_radius: Optional[bool] = False,
+) -> bool:
     """
     Returns whether or not the position is in a valid spot in the
     traversible
@@ -272,15 +298,20 @@ def within_traversible(new_pos: np.ndarray, traversible: np.ndarray, map_scale: 
     pos_y = int(new_pos[1] / map_scale)
     # Note: the traversible is mapped unintuitively, goes [y, x]
     try:
-        if (not traversible[pos_y][pos_x]):  # Looking for invalid spots
+        if not traversible[pos_y][pos_x]:  # Looking for invalid spots
             return False
         return True
     except:
         return False
 
 
-def within_traversible_with_radius(new_pos: np.ndarray, traversible: np.ndarray, map_scale: float, radius: Optional[int] = 1,
-                                   stroked_radius: Optional[bool] = False) -> bool:
+def within_traversible_with_radius(
+    new_pos: np.ndarray,
+    traversible: np.ndarray,
+    map_scale: float,
+    radius: Optional[int] = 1,
+    stroked_radius: Optional[bool] = False,
+) -> bool:
     """
     Returns whether or not the position is in a valid spot in the
     traversible the Radius input can determine how many surrounding
@@ -290,17 +321,19 @@ def within_traversible_with_radius(new_pos: np.ndarray, traversible: np.ndarray,
     for i in range(2 * radius):
         for j in range(2 * radius):
             if stroked_radius:
-                if not((i == 0 or i == radius - 1 or j == 0 or j == radius - 1)):
+                if not ((i == 0 or i == radius - 1 or j == 0 or j == radius - 1)):
                     continue
             pos_x = int(new_pos[0] / map_scale) - radius + i
             pos_y = int(new_pos[1] / map_scale) - radius + j
             # Note: the traversible is mapped unintuitively, goes [y, x]
-            if (not traversible[pos_y][pos_x]):  # Looking for invalid spots
+            if not traversible[pos_y][pos_x]:  # Looking for invalid spots
                 return False
     return True
 
 
-def generate_random_pos_in_environment(environment: Dict[str, int or float or np.ndarray]) -> np.ndarray:
+def generate_random_pos_in_environment(
+    environment: Dict[str, int or float or np.ndarray]
+) -> np.ndarray:
     """
     Generate a random position (x : meters, y : meters, theta : radians)
     and near the 'center' with a nearby valid goal position.

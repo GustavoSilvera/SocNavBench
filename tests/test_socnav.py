@@ -1,18 +1,25 @@
-import numpy as np
 import random
-from socnav.socnav_renderer import SocNavRenderer
-from dotmap import DotMap
+from typing import Dict, Tuple
+
+import numpy as np
+
 # Humanav
 from agents.humans.human import Human
 from agents.humans.recorded_human import PrerecordedHuman
 from agents.robot_agent import RobotAgent
+from dotmap import DotMap
+from params.central_params import (
+    create_datasets_params,
+    create_episodes_params,
+    create_robot_params,
+    create_socnav_params,
+    get_seed,
+)
+
 # Planner + Simulator:
 from simulators.simulator import Simulator
-from params.central_params import get_seed, create_socnav_params
+from socnav.socnav_renderer import SocNavRenderer
 from utils.socnav_utils import construct_environment
-from params.central_params import create_robot_params, create_episodes_params, create_datasets_params
-from trajectory.trajectory import SystemConfig
-from typing import Tuple, Dict
 
 # seed the random number generator
 random.seed(get_seed())
@@ -40,27 +47,28 @@ def create_params() -> DotMap:
     # overwrite tests with custom basic test
     p.episode_params.tests = {}
     default_name = "test_socnav_univ"
-    p.episode_params.tests[default_name] = \
-        DotMap(name=default_name,
-               map_name='Univ',
-               pedestrian_datasets=create_datasets_params(["univ"]),
-               datasets_start_t=[0.],
-               ped_ranges=[(0, 100)],
-               #    agents_start=[[8, 8, 0]], agents_end=[[17.5, 13, 0.]],
-               agents_start=[], agents_end=[],
-               robot_start_goal=[[10, 3, 0], [15.5, 8, 0.7]],
-               max_time=30,
-               write_episode_log=True
-               )
+    p.episode_params.tests[default_name] = DotMap(
+        name=default_name,
+        map_name="Univ",
+        pedestrian_datasets=create_datasets_params(["univ"]),
+        datasets_start_t=[0.0],
+        ped_ranges=[(0, 100)],
+        #    agents_start=[[8, 8, 0]], agents_end=[[17.5, 13, 0.]],
+        agents_start=[],
+        agents_end=[],
+        robot_start_goal=[[10, 3, 0], [15.5, 8, 0.7]],
+        max_time=30,
+        write_episode_log=True,
+    )
 
     # Tilt the camera 10 degree down from the horizontal axis
     p.robot_params.physical_params.camera_elevation_degree = -10
 
     if p.render_3D:
         # Can only render rgb and depth if the host has an available display
-        p.camera_params.modalities = ['rgb', 'disparity']
+        p.camera_params.modalities = ["rgb", "disparity"]
     else:
-        p.camera_params.modalities = ['occupancy_grid']
+        p.camera_params.modalities = ["occupancy_grid"]
     return p
 
 
@@ -86,8 +94,7 @@ def test_socnav() -> None:
         """
         simulator = Simulator(environment, renderer=r, episode_params=episode)
         """Generate the autonomous human agents from the episode"""
-        new_humans = \
-            Human.generate_humans(p, episode.agents_start, episode.agents_end)
+        new_humans = Human.generate_humans(p, episode.agents_start, episode.agents_end)
         simulator.add_agents(new_humans)
 
         """Add the prerecorded humans to the simulator"""
@@ -95,10 +102,11 @@ def test_socnav() -> None:
             dataset_start_t: float = episode.datasets_start_t[i]
             dataset_ped_range: Tuple[int, int] = episode.ped_ranges[i]
             new_prerecs = PrerecordedHuman.generate_humans(
-                p, max_time=episode.max_time,
+                p,
+                max_time=episode.max_time,
                 start_t=dataset_start_t,
                 ped_range=dataset_ped_range,
-                dataset=dataset
+                dataset=dataset,
             )
             simulator.add_agents(new_prerecs)
 
@@ -109,8 +117,7 @@ def test_socnav() -> None:
                 robot_agent = RobotAgent.random_from_environment(environment)
                 simulator.add_agent(robot_agent)
             else:
-                robot_agent = RobotAgent.generate_robot(
-                    episode.robot_start_goal)
+                robot_agent = RobotAgent.generate_robot(episode.robot_start_goal)
                 simulator.add_agent(robot_agent)
         # run simulation
         simulator.simulate()
@@ -121,6 +128,6 @@ def test_socnav() -> None:
         RobotAgent.close_robot_sockets()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # run basic room test with variable # of human
     test_socnav()

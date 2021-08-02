@@ -1,17 +1,25 @@
+import json
+import socket
+import time
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 from dotmap import DotMap
 from obstacles.sbpd_map import SBPDMap
-from utils.utils import generate_config_from_pos_3, conn_recv
-from agents.agent import Agent
-from agents.robot_utils import (clip_vel, clip_posn, lock, force_connect, establish_handshake,
-                                close_sockets)
-from trajectory.trajectory import SystemConfig
-from agents.humans.human_configs import HumanConfigs
 from params.central_params import create_robot_params
-from typing import Dict, List, Tuple, Optional
-import socket
-import numpy as np
-import time
-import json
+from trajectory.trajectory import SystemConfig
+from utils.utils import conn_recv, generate_config_from_pos_3
+
+from agents.agent import Agent
+from agents.humans.human_configs import HumanConfigs
+from agents.robot_utils import (
+    clip_posn,
+    clip_vel,
+    close_sockets,
+    establish_handshake,
+    force_connect,
+    lock,
+)
 
 
 class RobotAgent(Agent):
@@ -22,14 +30,15 @@ class RobotAgent(Agent):
     robot_receiver_id: str = create_robot_params().recv_ID
     robot_sender_id: str = create_robot_params().send_ID
 
-    def __init__(self, name: str, start_config: SystemConfig, goal_config: SystemConfig):
-        super().__init__(start_config,
-                         goal_config,
-                         name)
+    def __init__(
+        self, name: str, start_config: SystemConfig, goal_config: SystemConfig
+    ):
+        super().__init__(start_config, goal_config, name)
         # positional inputs are tuples of (x, y, theta, velocity)
         # acceleration inputs are tuples of (linear velocity, angular velocity)
-        self.joystick_inputs: List[Tuple[float, float, float, float]
-                                   or Tuple[float, float]] = []
+        self.joystick_inputs: List[
+            Tuple[float, float, float, float] or Tuple[float, float]
+        ] = []
         # josystick is ready once it has been sent an environment
         self.joystick_ready: bool = False
         # To send the world state on the next joystick ping
@@ -44,22 +53,27 @@ class RobotAgent(Agent):
         # this is (optionally) sent by the joystick
         self.algo_name: str = "UnknownAlgo"
 
-    def simulation_init(self, sim_map: SBPDMap, with_planner: Optional[bool] = False, keep_episode_running: Optional[bool] = False) -> None:
+    def simulation_init(
+        self,
+        sim_map: SBPDMap,
+        with_planner: Optional[bool] = False,
+        keep_episode_running: Optional[bool] = False,
+    ) -> None:
         # first initialize all the agent fields such as basic self.params
-        super().simulation_init(sim_map,
-                                with_planner=with_planner,
-                                with_system_dynamics=True,
-                                with_objectives=True,
-                                keep_episode_running=keep_episode_running)
+        super().simulation_init(
+            sim_map,
+            with_planner=with_planner,
+            with_system_dynamics=True,
+            with_objectives=True,
+            keep_episode_running=keep_episode_running,
+        )
         # this robot agent does not have a "planner" since that is done through the joystick
         self.params.robot_params = create_robot_params()
         # NOTE: robot radius is not the same as regular Agents
         self.radius: float = self.params.robot_params.physical_params.radius
         # velocity bounds when teleporting to positions (if not using sys dynamics)
-        self.v_bounds: Tuple[float, float] = \
-            self.params.system_dynamics_params.v_bounds
-        self.w_bounds: Tuple[float, float] = \
-            self.params.system_dynamics_params.w_bounds
+        self.v_bounds: Tuple[float, float] = self.params.system_dynamics_params.v_bounds
+        self.w_bounds: Tuple[float, float] = self.params.system_dynamics_params.w_bounds
         # simulation update init
         self.num_executed: int = 0  # keeps track of the latest command that is to be executed
         # number of commands the joystick sends at once
@@ -74,7 +88,9 @@ class RobotAgent(Agent):
         return self.block_time_total
 
     @classmethod
-    def generate_robot(cls, start_goal: List[List[float]], verbose: Optional[bool] = False):
+    def generate_robot(
+        cls, start_goal: List[List[float]], verbose: Optional[bool] = False
+    ):
         """
         Sample a new random robot agent from all required features
         """
@@ -88,15 +104,18 @@ class RobotAgent(Agent):
         return cls(robot_name, start, goal)
 
     @classmethod
-    def random_from_environment(cls, environment: Dict[str, float or int or np.ndarray]):
+    def random_from_environment(
+        cls, environment: Dict[str, float or int or np.ndarray]
+    ):
         """
         Sample a new robot without knowing any configs or appearance fields
         NOTE: needs environment to produce valid configs
         """
         configs = HumanConfigs.generate_random_human_config(environment)
-        start_goal: Tuple[SystemConfig, SystemConfig] = \
-            [list(configs.get_start_config().to_3D_numpy()),
-             list(configs.get_goal_config().to_3D_numpy())]
+        start_goal: Tuple[SystemConfig, SystemConfig] = [
+            list(configs.get_start_config().to_3D_numpy()),
+            list(configs.get_goal_config().to_3D_numpy()),
+        ]
         return cls.generate_robot(start_goal, verbose=False)
 
     def check_termination_conditions(self) -> None:
@@ -133,22 +152,22 @@ class RobotAgent(Agent):
             current_config = self.get_current_config()
             # the command is indexed by self.num_executed and is safe due to the size constraints in the update()
             vel_cmd = self.joystick_inputs[self.num_executed]
-            assert(len(vel_cmd) == 2)  # always a 2 tuple of v and w
+            assert len(vel_cmd) == 2  # always a 2 tuple of v and w
             v = clip_vel(vel_cmd[0], self.v_bounds)
             w = clip_vel(vel_cmd[1], self.w_bounds)
             # NOTE: the format for the acceleration commands to the open loop for the robot is:
             # np.array([[[L, A]]], dtype=np.float32) where L is linear, A is angular
             command = np.array([[[v, w]]], dtype=np.float32)
-            t_seg, _ = Agent.apply_control_open_loop(self, current_config,
-                                                     command, 1,
-                                                     sim_mode='ideal'
-                                                     )
+            t_seg, _ = Agent.apply_control_open_loop(
+                self, current_config, command, 1, sim_mode="ideal"
+            )
             self.trajectory.append_along_time_axis(
-                t_seg, track_trajectory_acceleration=True)
+                t_seg, track_trajectory_acceleration=True
+            )
             # act trajectory segment
-            self.current_config = \
-                SystemConfig.init_config_from_trajectory_time_index(
-                    t_seg, t=-1)
+            self.current_config = SystemConfig.init_config_from_trajectory_time_index(
+                t_seg, t=-1
+            )
 
     def execute_position_cmds(self) -> None:
         # used when robot "teleports" to the next position
@@ -156,18 +175,18 @@ class RobotAgent(Agent):
             if self.get_end_acting():
                 break
             joystick_input = self.joystick_inputs[self.num_executed]
-            assert(len(joystick_input) == 4)  # has x,y,theta,velocity
+            assert len(joystick_input) == 4  # has x,y,theta,velocity
             new_pos3 = joystick_input[:3]
             new_v = joystick_input[3]
             old_pos3 = self.current_config.to_3D_numpy()
             # ensure the new position is reachable within velocity bounds
-            new_pos3 = clip_posn(Agent.sim_dt, old_pos3,
-                                 new_pos3, self.v_bounds)
+            new_pos3 = clip_posn(Agent.sim_dt, old_pos3, new_pos3, self.v_bounds)
             # move to the new position and update trajectory
             new_config = generate_config_from_pos_3(new_pos3, v=new_v)
             self.set_current_config(new_config)
-            self.trajectory.append_along_time_axis(new_config,
-                                                   track_trajectory_acceleration=True)
+            self.trajectory.append_along_time_axis(
+                new_config, track_trajectory_acceleration=True
+            )
 
     def sense(self) -> None:
         # send a sim_state if it was requested by the joystick
@@ -179,7 +198,9 @@ class RobotAgent(Agent):
         if self.block_joystick:
             # block simulation (world) progression on the act() commands sent from the joystick
             init_block_t = time.time()
-            while not self.get_end_acting() and self.num_executed >= len(self.joystick_inputs):
+            while not self.get_end_acting() and self.num_executed >= len(
+                self.joystick_inputs
+            ):
                 if self.num_executed == len(self.joystick_inputs):
                     if self.joystick_requests_world == 0:
                         self.send_sim_state()
@@ -224,13 +245,11 @@ class RobotAgent(Agent):
 
     def power_off(self) -> None:
         # if the robot is already "off" do nothing
-        print("\nRobot powering off, received",
-              len(self.joystick_inputs), "commands")
+        print("\nRobot powering off, received", len(self.joystick_inputs), "commands")
         self.end_acting = True
         try:
             quit_message = self.world_state.to_json(
-                robot_on=False,
-                termination_cause=self.termination_cause
+                robot_on=False, termination_cause=self.termination_cause
             )
             self.send_to_joystick(quit_message)
         except:
@@ -247,22 +266,23 @@ class RobotAgent(Agent):
     def send_sim_state(self) -> None:
         # send the (JSON serialized) world state per joystick's request
         if self.joystick_requests_world == 0:
-            world_state: str = \
-                self.world_state.to_json(robot_on=not self.get_end_acting())
+            world_state: str = self.world_state.to_json(
+                robot_on=not self.get_end_acting()
+            )
             self.send_to_joystick(world_state)
             # immediately note that the world has been sent:
             self.joystick_requests_world = -1
 
     def send_to_joystick(self, message: str) -> None:
         with lock:
-            assert(isinstance(message, str))
+            assert isinstance(message, str)
             # Create a TCP/IP socket
-            RobotAgent.robot_sender_socket = \
-                socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            RobotAgent.robot_sender_socket = socket.socket(
+                socket.AF_UNIX, socket.SOCK_STREAM
+            )
             # Connect the socket to the port where the server is listening
             try:
-                RobotAgent.robot_sender_socket.connect(
-                    RobotAgent.robot_sender_id)
+                RobotAgent.robot_sender_socket.connect(RobotAgent.robot_sender_id)
             except ConnectionRefusedError:
                 # abort and dont send data
                 return
@@ -278,7 +298,7 @@ class RobotAgent(Agent):
         data_b, response_len = conn_recv(connection, buffr_amnt=128)
         # close connection to be reaccepted when the joystick sends data
         connection.close()
-        if data_b is not b'' and response_len > 0:
+        if data_b is not b"" and response_len > 0:
             data_str = data_b.decode("utf-8")  # bytes to str
             if self.get_end_acting():
                 self.joystick_requests_world = 0
@@ -288,14 +308,15 @@ class RobotAgent(Agent):
     def is_keyword(self, data_str: str) -> bool:
         # non json important keyword
         if data_str == "sense":
-            self.joystick_requests_world = \
-                len(self.joystick_inputs) - (self.num_executed)
+            self.joystick_requests_world = len(self.joystick_inputs) - (
+                self.num_executed
+            )
             return True
         elif data_str == "ready":
             self.joystick_ready = True
             return True
         elif "algo: " in data_str:
-            self.algo_name = data_str[len("algo: "):]
+            self.algo_name = data_str[len("algo: ") :]
             return True
         elif data_str == "abandon":
             self.power_off()
@@ -317,13 +338,16 @@ class RobotAgent(Agent):
 
     @staticmethod
     def establish_joystick_handshake(p: DotMap) -> None:
-        socks = establish_handshake(p, RobotAgent.robot_sender_id,
-                                    RobotAgent.robot_receiver_id)
+        socks = establish_handshake(
+            p, RobotAgent.robot_sender_id, RobotAgent.robot_receiver_id
+        )
         # assign the new sockets
         RobotAgent.robot_receiver_socket: socket.socket = socks[0]
         RobotAgent.robot_sender_socket: socket.socket = socks[1]
 
     @staticmethod
     def close_robot_sockets() -> None:
-        close_sockets([RobotAgent.robot_receiver_socket,
-                       RobotAgent.robot_sender_socket])
+        close_sockets(
+            [RobotAgent.robot_receiver_socket, RobotAgent.robot_sender_socket]
+        )
+

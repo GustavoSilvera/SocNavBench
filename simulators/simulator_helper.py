@@ -1,26 +1,31 @@
-import numpy as np
 import multiprocessing
 import threading
 import time
-from agents.agent import Agent
-from agents.robot_agent import RobotAgent
-from agents.humans.recorded_human import PrerecordedHuman
-from simulators.sim_state import SimState
-from socnav.socnav_renderer import SocNavRenderer
-from params.central_params import create_simulator_params
-from utils.utils import color_red, color_green, color_blue, color_orange, color_reset
-from utils.image_utils import render_rgb_and_depth, render_scene, save_to_gif
-from typing import Dict, List, Tuple, Optional
-import pandas as pd
-from dotmap import DotMap
-from obstacles.sbpd_map import SBPDMap
+from typing import Dict, List, Optional, Tuple
+
 import matplotlib as mpl
+import numpy as np
+import pandas as pd
+from agents.agent import Agent
+from agents.humans.recorded_human import PrerecordedHuman
+from agents.robot_agent import RobotAgent
+from dotmap import DotMap
 from matplotlib import pyplot
+from obstacles.sbpd_map import SBPDMap
+from params.central_params import create_simulator_params
+from socnav.socnav_renderer import SocNavRenderer
+from utils.image_utils import render_rgb_and_depth, render_scene, save_to_gif
+from utils.utils import color_blue, color_green, color_orange, color_red, color_reset
+
+from simulators.sim_state import SimState
 
 
 class SimulatorHelper(object):
-
-    def __init__(self, environment: Dict[str, float or int or np.ndarray], verbose: Optional[bool] = False):
+    def __init__(
+        self,
+        environment: Dict[str, float or int or np.ndarray],
+        verbose: Optional[bool] = False,
+    ):
         """ Initializer for the simulator helper
         Args:
             environment (dict): dictionary housing the obj map (bitmap) and more
@@ -60,30 +65,36 @@ class SimulatorHelper(object):
         Args:
             a (Agent/PrerecordedAgent/RobotAgent): The agent to be added to the simulator
         """
-        assert(self.obstacle_map is not None)
+        assert self.obstacle_map is not None
         name: str = a.get_name()
         if isinstance(a, RobotAgent):
             # initialize the robot and add to simulator's known "robot" field
-            a.simulation_init(sim_map=self.obstacle_map,
-                              with_planner=False,
-                              keep_episode_running=self.params.keep_episode_running)
+            a.simulation_init(
+                sim_map=self.obstacle_map,
+                with_planner=False,
+                keep_episode_running=self.params.keep_episode_running,
+            )
             self.robots[name] = a
             self.robot = a
         elif isinstance(a, PrerecordedHuman):
             # generic agent initializer but without a planner (already have trajectories)
-            a.simulation_init(sim_map=self.obstacle_map,
-                              with_planner=False,
-                              with_system_dynamics=False,
-                              with_objectives=False,
-                              keep_episode_running=self.params.keep_episode_running)
+            a.simulation_init(
+                sim_map=self.obstacle_map,
+                with_planner=False,
+                with_system_dynamics=False,
+                with_objectives=False,
+                keep_episode_running=self.params.keep_episode_running,
+            )
             # added to backstage prerecs which will add to self.prerecs when the time is right
             self.backstage_prerecs[name] = a
             self.num_timeout_agents += 1  # added one more non-robot agent
         else:
             # initialize agent and add to simulator
-            a.simulation_init(sim_map=self.obstacle_map,
-                              with_planner=True,
-                              keep_episode_running=self.params.keep_episode_running)
+            a.simulation_init(
+                sim_map=self.obstacle_map,
+                with_planner=True,
+                keep_episode_running=self.params.keep_episode_running,
+            )
             self.agents[name] = a
             self.num_timeout_agents += 1  # added one more non-robot agent
 
@@ -108,9 +119,12 @@ class SimulatorHelper(object):
     def init_obstacle_map(self, renderer: Optional[SocNavRenderer] = None) -> SBPDMap:
         """ Initializes the sbpd map."""
         p: DotMap = self.params.obstacle_map_params
-        return p.obstacle_map(p, renderer,
-                              res=self.environment["map_scale"] * 100,
-                              map_trav=self.environment["map_traversible"])
+        return p.obstacle_map(
+            p,
+            renderer,
+            res=self.environment["map_scale"] * 100,
+            map_trav=self.environment["map_traversible"],
+        )
 
     def loop_condition(self) -> bool:
         raise NotImplementedError
@@ -124,13 +138,21 @@ class SimulatorHelper(object):
         Args:
             rendered_frames (int): how many frames have been generated so far
         """
-        print("A:", self.total_agents,
-              "%sSuccess:" % (color_green), self.num_completed_agents,
-              "%sCollide:" % (color_red), self.num_collided_agents,
-              "%sTime:" % (color_blue), self.num_timeout_agents,
-              "%sFrames:" % (color_reset), rendered_frames,
-              "T = %.3f" % (self.sim_t),
-              "\r", end="")
+        print(
+            "A:",
+            self.total_agents,
+            "%sSuccess:" % (color_green),
+            self.num_completed_agents,
+            "%sCollide:" % (color_red),
+            self.num_collided_agents,
+            "%sTime:" % (color_blue),
+            self.num_timeout_agents,
+            "%sFrames:" % (color_reset),
+            rendered_frames,
+            "T = %.3f" % (self.sim_t),
+            "\r",
+            end="",
+        )
 
     def gather_robot_collisions(self, max_iter: int) -> List[str]:
         agent_collisions: List[str] = []
@@ -151,13 +173,15 @@ class SimulatorHelper(object):
                 else:
                     self.num_completed_agents += 1
                 self.num_timeout_agents -= 1  # decrement the timeout_agents counter
-                del(self.agents[a.get_name()])
-                del(a)
+                del self.agents[a.get_name()]
+                del a
             else:
                 a.update(current_state)
 
         for a in list(self.backstage_prerecs.values()):
-            if (not a.get_end_acting()) and (a.get_start_time() <= Agent.sim_t < a.get_end_time()):
+            if (not a.get_end_acting()) and (
+                a.get_start_time() <= Agent.sim_t < a.get_end_time()
+            ):
                 # only add (or keep) agents in the time frame
                 self.prerecs[a.get_name()] = a
                 a.update(current_state)
@@ -173,10 +197,12 @@ class SimulatorHelper(object):
                     self.num_timeout_agents -= 1  # decrement the timeout_agents counter
                     self.prerecs.pop(a.get_name())
                     # also remove from back stage since they will no longer be used
-                    del(self.backstage_prerecs[a.get_name()])
-                    del(a)
+                    del self.backstage_prerecs[a.get_name()]
+                    del a
 
-    def init_auto_agent_threads(self, current_state: SimState) -> List[threading.Thread]:
+    def init_auto_agent_threads(
+        self, current_state: SimState
+    ) -> List[threading.Thread]:
         """Spawns a new agent thread for each agent (running or finished)
         Args:
             current_state (SimState): the most recent state of the world
@@ -187,18 +213,21 @@ class SimulatorHelper(object):
         all_agents: List[Agent] = list(self.agents.values())
         for a in all_agents:
             if not a.end_acting:
-                agent_threads.append(threading.Thread(target=a.update,
-                                                      args=(current_state,)))
+                agent_threads.append(
+                    threading.Thread(target=a.update, args=(current_state,))
+                )
             else:
                 if a.get_collided():
                     self.num_collided_agents += 1
                 else:
                     self.num_completed_agents += 1
-                del(self.agents[a.get_name()])
-                del(a)
+                del self.agents[a.get_name()]
+                del a
         return agent_threads
 
-    def init_prerec_agent_threads(self, current_state: SimState) -> List[threading.Thread]:
+    def init_prerec_agent_threads(
+        self, current_state: SimState
+    ) -> List[threading.Thread]:
         """Spawns a new prerec thread for each running prerecorded agent
         Args:
             current_state (SimState): the current state of the world
@@ -207,13 +236,18 @@ class SimulatorHelper(object):
         """
         prerec_threads: List[threading.Thread] = []
         all_prerec_agents: List[PrerecordedHuman] = list(
-            self.backstage_prerecs.values())
+            self.backstage_prerecs.values()
+        )
         for a in all_prerec_agents:
-            if(not a.end_acting and a.get_start_time() <= Agent.sim_t < a.get_end_time()):
+            if (
+                not a.end_acting
+                and a.get_start_time() <= Agent.sim_t < a.get_end_time()
+            ):
                 # only add (or keep) agents in the time frame
                 self.prerecs[a.get_name()] = a
-                prerec_threads.append(threading.Thread(target=a.update,
-                                                       args=(current_state,)))
+                prerec_threads.append(
+                    threading.Thread(target=a.update, args=(current_state,))
+                )
             else:
                 # remove agent since its not within the time frame or finished
                 if a.get_name() in self.prerecs:
@@ -223,8 +257,8 @@ class SimulatorHelper(object):
                         self.num_completed_agents += 1
                     self.prerecs.pop(a.get_name())
                     # also remove from back stage since they will no longer be used
-                    del(self.backstage_prerecs[a.get_name()])
-                    del(a)
+                    del self.backstage_prerecs[a.get_name()]
+                    del a
         return prerec_threads
 
     def start_threads(self, thread_group: List[threading.Thread]) -> None:
@@ -242,9 +276,14 @@ class SimulatorHelper(object):
         """
         for t in thread_group:
             t.join()
-            del(t)
+            del t
 
-    def render(self, renderer: SocNavRenderer, camera_pose: np.ndarray, filename: Optional[str] = "obs") -> None:
+    def render(
+        self,
+        renderer: SocNavRenderer,
+        camera_pose: np.ndarray,
+        filename: Optional[str] = "obs",
+    ) -> None:
         """Generates a png frame for each world state saved in self.sim_states. Note, based off the
         render_3D options, the function will generate the frames in multiple separate processes to
         optimize performance on multicore machines, else it can also be done sequentially.
@@ -259,8 +298,7 @@ class SimulatorHelper(object):
 
         # Rendering movie
         fps: float = (1.0 / self.dt) * fps_scale
-        print("%sRendering movie with fps=%d%s" %
-              (color_orange, fps, color_reset))
+        print("%sRendering movie with fps=%d%s" % (color_orange, fps, color_reset))
         num_states = len(self.sim_states)
         num_frames = int(np.ceil(num_states * fps_scale))
 
@@ -280,25 +318,42 @@ class SimulatorHelper(object):
                     sim_state_skip.append(0)
                     # skip certain other frames as directed by the fps_scale_down
                     skip -= 1
-            assert(len(sim_state_skip) == num_s)
+            assert len(sim_state_skip) == num_s
             return np.array(sim_state_skip).astype(np.int16)
+
         sim_state_skip = generate_skip_flags(num_states, fps_scale)
 
         start_time = float(time.time())
 
         def worker_render_sim_states(procID: int) -> None:
             # runs an interleaved loop across sim_states in the bank
-            mpl.use('Agg')  # for rendering without a display
+            mpl.use("Agg")  # for rendering without a display
             mpl.font_manager._get_font.cache_clear()
-            for i in range(int(np.ceil(len(sim_state_bank) / self.params.num_render_cores))):
+            for i in range(
+                int(np.ceil(len(sim_state_bank) / self.params.num_render_cores))
+            ):
                 sim_idx = procID + i * self.params.num_render_cores
                 if sim_idx < len(sim_state_bank) and sim_state_skip[sim_idx] == 1:
                     sim_state_idx = sim_state_bank[sim_idx]
-                    self.render_sim_state(mpl.pyplot, renderer, camera_pose,
-                                          sim_state_idx, filename + str(sim_idx) + ".png")
+                    self.render_sim_state(
+                        mpl.pyplot,
+                        renderer,
+                        camera_pose,
+                        sim_state_idx,
+                        filename + str(sim_idx) + ".png",
+                    )
                     sim_label = sim_idx * fps_scale
-                    print("Rendered frames: %d out of %d, %.3f%% \r" %
-                          (sim_label, num_frames, 100.0 * min(1, sim_label / num_frames)), sep=' ', end="", flush=True)
+                    print(
+                        "Rendered frames: %d out of %d, %.3f%% \r"
+                        % (
+                            sim_label,
+                            num_frames,
+                            100.0 * min(1, sim_label / num_frames),
+                        ),
+                        sep=" ",
+                        end="",
+                        flush=True,
+                    )
 
         gif_processes: List[multiprocessing.Process] = []
         if self.params.num_render_cores > 1:
@@ -307,8 +362,11 @@ class SimulatorHelper(object):
             if self.params.render_3D == False:
                 # optimized to use multiple processes
                 for p in range(self.params.num_render_cores - 1):
-                    gif_processes.append(multiprocessing.Process(target=worker_render_sim_states,
-                                                                 args=(p + 1,)))
+                    gif_processes.append(
+                        multiprocessing.Process(
+                            target=worker_render_sim_states, args=(p + 1,)
+                        )
+                    )
                 for proc in gif_processes:
                     proc.start()
 
@@ -318,8 +376,10 @@ class SimulatorHelper(object):
         # finish all the other processors if there are any
         for proc in gif_processes:
             proc.join()
-        print("Rendered frames: %d out of %d, %.3f%%\nFinished rendering all frames" %
-              (num_frames, num_frames, 100.0))  # make sure it says 100% at the end
+        print(
+            "Rendered frames: %d out of %d, %.3f%%\nFinished rendering all frames"
+            % (num_frames, num_frames, 100.0)
+        )  # make sure it says 100% at the end
         time_end = float(time.time())
         print("rendering took %.5fs" % ((time_end - start_time)))
 
@@ -327,8 +387,14 @@ class SimulatorHelper(object):
         self.save_frames_to_gif(filename=self.episode_params.name)
         return
 
-    def render_sim_state(self, plt: pyplot.plot, renderer: SocNavRenderer, camera_pose: np.ndarray,
-                         state: SimState, filename: str) -> None:
+    def render_sim_state(
+        self,
+        plt: pyplot.plot,
+        renderer: SocNavRenderer,
+        camera_pose: np.ndarray,
+        state: SimState,
+        filename: str,
+    ) -> None:
         """Converts a state into an image to be later converted to a gif movie
         Args:
             state (SimState): the state of the world to convert to an image
@@ -350,7 +416,7 @@ class SimulatorHelper(object):
         if self.params.render_3D:
             # TODO: Fix multiprocessing for properly deepcopied renderers
             # only when rendering with opengl
-            assert("human_traversible" in state.get_environment())
+            assert "human_traversible" in state.get_environment()
             # remove the "old" humans
             renderer.remove_all_humans()
             # update pedestrians humans
@@ -362,15 +428,26 @@ class SimulatorHelper(object):
             # state.get_environment()["human_traversible"] = \
             #     renderer.get_human_traversible()
             # compute the rgb and depth images
-            rgb_image_1mk3, depth_image_1mk1 = \
-                render_rgb_and_depth(renderer, np.array([camera_pos_13]),
-                                     state.get_environment()["map_scale"],
-                                     human_visible=True)
+            rgb_image_1mk3, depth_image_1mk1 = render_rgb_and_depth(
+                renderer,
+                np.array([camera_pos_13]),
+                state.get_environment()["map_scale"],
+                human_visible=True,
+            )
         # plot the rbg, depth, and topview images if applicable
-        render_scene(plt, self.params, rgb_image_1mk3, depth_image_1mk1,
-                     state.get_environment(), camera_pos_13,
-                     state.get_pedestrians(), state.get_robots(),
-                     state.get_sim_t(), state.get_wall_t(), filename)
+        render_scene(
+            plt,
+            self.params,
+            rgb_image_1mk3,
+            depth_image_1mk1,
+            state.get_environment(),
+            camera_pos_13,
+            state.get_pedestrians(),
+            state.get_robots(),
+            state.get_sim_t(),
+            state.get_wall_t(),
+            filename,
+        )
         # Delete state to save memory after frames are generated
         del state
 
@@ -386,9 +463,12 @@ class SimulatorHelper(object):
         duration: float = self.dt * (1.0 / self.params.fps_scale_down)
         # sequentially
         gif_filename: str = "movie_%s" % filename
-        save_to_gif(self.params.output_directory, duration,
-                    gif_filename=gif_filename,
-                    clear_old_files=self.params.clear_files)
+        save_to_gif(
+            self.params.output_directory,
+            duration,
+            gif_filename=gif_filename,
+            clear_old_files=self.params.clear_files,
+        )
 
 
 """central sim - pandas utils"""
@@ -401,6 +481,7 @@ def sim_states_to_dataframe(sim) -> Tuple[pd.DataFrame, Dict[str, List[float]]]:
     :return:
     """
     from simulators.simulator import Simulator
+
     if isinstance(sim, Simulator):
         all_states: List[SimState] = sim.states
     elif isinstance(sim, dict):
@@ -415,8 +496,7 @@ def sim_states_to_dataframe(sim) -> Tuple[pd.DataFrame, Dict[str, List[float]]]:
 
             if not isinstance(agent, dict):
                 # traj = np.squeeze(agent.vehicle_trajectory.position_and_heading_nk3())
-                traj = np.squeeze(
-                    agent.current_config.position_and_heading_nk3())
+                traj = np.squeeze(agent.current_config.position_and_heading_nk3())
                 agent_info[agent_name] = [agent.get_radius()]
             else:
                 traj = np.squeeze(agent["trajectory"])
@@ -438,7 +518,9 @@ def sim_states_to_dataframe(sim) -> Tuple[pd.DataFrame, Dict[str, List[float]]]:
     return df, agent_info
 
 
-def add_sim_state_to_dataframe(sim_step: int, sim_state: SimState, df: pd.DataFrame, agent_info: Dict[str, List]) -> Tuple[pd.DataFrame, Dict[str, List[float]]]:
+def add_sim_state_to_dataframe(
+    sim_step: int, sim_state: SimState, df: pd.DataFrame, agent_info: Dict[str, List]
+) -> Tuple[pd.DataFrame, Dict[str, List[float]]]:
     """
         append agents at sim_step*delta_t into df
         :param sim:
@@ -446,8 +528,7 @@ def add_sim_state_to_dataframe(sim_step: int, sim_state: SimState, df: pd.DataFr
     """
     for agent_name, agent in sim_state.items():
         if not isinstance(agent, dict):
-            traj = \
-                np.squeeze(agent.vehicle_trajectory.position_and_heading_nk3())
+            traj = np.squeeze(agent.vehicle_trajectory.position_and_heading_nk3())
             if agent_name not in agent_info:
                 agent_info[agent_name] = [agent.get_radius()]
         else:

@@ -1,22 +1,36 @@
-from dotmap import DotMap
-from simulators.sim_state import SimState
-from trajectory.trajectory import SystemConfig
-from utils.utils import generate_config_from_pos_3, euclidean_dist2
-from utils.utils import color_red, color_reset
 import os
-from agents.humans.human import Human
-from agents.humans.human_configs import HumanConfigs
-from agents.humans.human_appearance import HumanAppearance
-from agents.agent import Agent
+from typing import Callable, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 import scipy
-from typing import List, Optional, Tuple, Callable
+from agents.agent import Agent
+from agents.humans.human import Human
+from agents.humans.human_appearance import HumanAppearance
+from agents.humans.human_configs import HumanConfigs
+from dotmap import DotMap
+from simulators.sim_state import SimState
+from trajectory.trajectory import SystemConfig
+from utils.utils import (
+    color_red,
+    color_reset,
+    euclidean_dist2,
+    generate_config_from_pos_3,
+)
 
 
 class PrerecordedHuman(Human):
-    def __init__(self, t_data: List[float], posn_data: List[SystemConfig], interps: Tuple[Callable[[float], float], Callable[[float], float], Callable[[float], float]], generate_appearance: Optional[bool] = True, name: Optional[str] = None):
-        assert(len(t_data) == len(posn_data))
+    def __init__(
+        self,
+        t_data: List[float],
+        posn_data: List[SystemConfig],
+        interps: Tuple[
+            Callable[[float], float], Callable[[float], float], Callable[[float], float]
+        ],
+        generate_appearance: Optional[bool] = True,
+        name: Optional[str] = None,
+    ):
+        assert len(t_data) == len(posn_data)
         self.t_data: List[float] = t_data
         # useful to know the ground truth pedestrian data rate
         self.del_t: float = t_data[2] - t_data[1]
@@ -31,8 +45,7 @@ class PrerecordedHuman(Human):
         self.thinterp: Callable[[float], float] = interps[2]
         init_configs = HumanConfigs(posn_data[0], posn_data[-1])
         if generate_appearance:
-            appearance = \
-                HumanAppearance.generate_rand_human_appearance(HumanAppearance)
+            appearance = HumanAppearance.generate_rand_human_appearance(HumanAppearance)
         else:
             appearance = None
         self.relative_diff: float = 0.0  # how much time the agent will spend stopped
@@ -55,17 +68,17 @@ class PrerecordedHuman(Human):
     def get_completed(self) -> bool:
         # dont have special termination conditions
         # only care about the time not surpassing max t_data
-        self.end_acting = (self.get_rel_t() < self.get_end_time())
+        self.end_acting = self.get_rel_t() < self.get_end_time()
         return self.get_rel_t() < self.get_end_time()
 
     def get_interp_posns(self) -> SystemConfig:
         x = self.xinterp(self.get_rel_t())
         y = self.yinterp(self.get_rel_t())
         t = self.current_precalc_step
-        prev_x, prev_y, prev_theta = \
-            np.squeeze(self.posn_data[t].position_and_heading_nk3())
-        _, _, next_theta = \
-            np.squeeze(self.posn_data[t + 1].position_and_heading_nk3())
+        prev_x, prev_y, prev_theta = np.squeeze(
+            self.posn_data[t].position_and_heading_nk3()
+        )
+        _, _, next_theta = np.squeeze(self.posn_data[t + 1].position_and_heading_nk3())
         # TODO: fix bug where interpolated points VERY close to the previous points
         # result in numerical errors that result in incorrect theta calculations
         theta = np.arctan2((y - prev_y), (x - prev_x))
@@ -76,8 +89,7 @@ class PrerecordedHuman(Human):
         posn_interp = [x, y, theta]
         last_t = np.floor((self.get_rel_t() - self.t_data[0]) / Agent.sim_dt)
         last_non_interp_v = np.squeeze(self.posn_data[int(last_t)].speed_nk1())
-        posn_interp_conf = generate_config_from_pos_3(posn_interp,
-                                                      v=last_non_interp_v)
+        posn_interp_conf = generate_config_from_pos_3(posn_interp, v=last_non_interp_v)
         return posn_interp_conf
 
     def sense(self, sim_state: SimState) -> None:
@@ -89,7 +101,7 @@ class PrerecordedHuman(Human):
                 # update relative time differences
                 self.relative_diff += self.collision_cooldown
         # update collision cooldown
-        if(self.collision_cooldown > 0):
+        if self.collision_cooldown > 0:
             self.collision_cooldown -= 1
 
     def plan(self) -> None:
@@ -98,8 +110,9 @@ class PrerecordedHuman(Human):
         # this is to account for the delay_time / init_delay
         if self.params.pause_on_collide and self.collision_cooldown > 0:
             return
-        self.current_precalc_step = \
-            int((self.get_rel_t() - self.t_data[1] + self.del_t) / self.del_t)
+        self.current_precalc_step = int(
+            (self.get_rel_t() - self.t_data[1] + self.del_t) / self.del_t
+        )
 
     def act(self) -> None:
         if self.params.pause_on_collide and self.collision_cooldown > 0:
@@ -121,7 +134,11 @@ class PrerecordedHuman(Human):
     """ BEGIN INITIALIZATION UTILS """
 
     @staticmethod
-    def init_interp_fns(posn_data: List[List[float]], times: List[float]) -> Tuple[Callable[[float], float], Callable[[float], float], Callable[[float], float]]:
+    def init_interp_fns(
+        posn_data: List[List[float]], times: List[float]
+    ) -> Tuple[
+        Callable[[float], float], Callable[[float], float], Callable[[float], float]
+    ]:
         posn_data = np.array(posn_data)
         ts = np.array(times)
         # correct for the fact that times of 0 is weird
@@ -137,8 +154,10 @@ class PrerecordedHuman(Human):
         return xfunc, yfunc, thfunc
 
     @staticmethod
-    def gather_times(ped_i: int, time_delay: float, start_t: float, start_frame: int, fps: float) -> List[float]:
-        times = (ped_i['frame'] - start_frame) * (1. / fps)
+    def gather_times(
+        ped_i: int, time_delay: float, start_t: float, start_frame: int, fps: float
+    ) -> List[float]:
+        times = (ped_i["frame"] - start_frame) * (1.0 / fps)
         # account for the time delay (before the rest of the action),
         # and the start time (when the pedestrian first appears in the simulator)
         times += time_delay + start_t
@@ -149,28 +168,39 @@ class PrerecordedHuman(Human):
         return times
 
     @staticmethod
-    def gather_posn_data(ped_i: int, offset: Tuple[int, int, int], swap_axes: Optional[bool] = False, scale_x: Optional[int] = 1, scale_y: Optional[int] = 1) -> np.ndarray:
+    def gather_posn_data(
+        ped_i: int,
+        offset: Tuple[int, int, int],
+        swap_axes: Optional[bool] = False,
+        scale_x: Optional[int] = 1,
+        scale_y: Optional[int] = 1,
+    ) -> np.ndarray:
         xy_data = []
-        xy_order = ('x', 'y')
+        xy_order = ("x", "y")
         scale = (scale_x, scale_y)
         if swap_axes:
-            xy_order = ('y', 'x')
+            xy_order = ("y", "x")
             scale = (scale_y, scale_x)
         # gather the data from df
-        xy_data = np.array([scale[0] * ped_i[xy_order[0]],
-                            scale[1] * ped_i[xy_order[1]]])
+        xy_data = np.array(
+            [scale[0] * ped_i[xy_order[0]], scale[1] * ped_i[xy_order[1]]]
+        )
         # apply the rotations to the x, y positions
         s = np.sin(offset[2])
         c = np.cos(offset[2])
         # construct xy data
-        posn_data = np.array([xy_data[0] * c - xy_data[1] * s + offset[0],
-                              xy_data[0] * s + xy_data[1] * c + offset[1]])
+        posn_data = np.array(
+            [
+                xy_data[0] * c - xy_data[1] * s + offset[0],
+                xy_data[0] * s + xy_data[1] * c + offset[1],
+            ]
+        )
         # append vector angles for all the agents
         now = posn_data[:, 1:]  # skip first
         last = posn_data[:, :-1]  # skip last
         thetas = np.arctan2(now[1] - last[1], now[0] - last[0])
         thetas = np.append(thetas, thetas[-1])  # last element gets last angle
-        assert(len(thetas) == len(posn_data.T))
+        assert len(thetas) == len(posn_data.T)
         # append thetas to posn data
         posn_data = np.vstack([posn_data, thetas.T]).T
         # add the first position to the start of the data for the initial delay
@@ -198,15 +228,17 @@ class PrerecordedHuman(Human):
         return [xytheta[0]] + xytheta
 
     @staticmethod
-    def gather_vel_data(time_data: List[float], posn_data: List[List[float]]) -> List[float]:
+    def gather_vel_data(
+        time_data: List[float], posn_data: List[List[float]]
+    ) -> List[float]:
         # return linear speed to the list of variables
         v_data: List[float] = []
-        assert(len(time_data) == len(posn_data))
+        assert len(time_data) == len(posn_data)
         for j, pos_2 in enumerate(posn_data):
-            if(j > 1):
+            if j > 1:
                 last_pos_2 = posn_data[j - 1]
                 # calculating euclidean dist / delta_t
-                delta_t = (time_data[j] - time_data[j - 1])
+                delta_t = time_data[j] - time_data[j - 1]
                 speed = euclidean_dist2(pos_2, last_pos_2) / delta_t
                 v_data.append(speed)  # last element gets last angle
             else:
@@ -214,16 +246,23 @@ class PrerecordedHuman(Human):
         return v_data
 
     @staticmethod
-    def to_configs(xytheta_data: List[Tuple[float, float, float]], v_data: List[float]) -> List[SystemConfig]:
-        assert(len(xytheta_data) == len(v_data))
+    def to_configs(
+        xytheta_data: List[Tuple[float, float, float]], v_data: List[float]
+    ) -> List[SystemConfig]:
+        assert len(xytheta_data) == len(v_data)
         config_data: List[SystemConfig] = []
         for i, pos3 in enumerate(xytheta_data):
             config_data.append(generate_config_from_pos_3(pos3, v=v_data[i]))
         return config_data
 
     @staticmethod
-    def generate_humans(params: DotMap, max_time: Optional[float] = 10e7,
-                        start_t: Optional[float] = 0, ped_range: Optional[Tuple[int, int]] = (0, -1), dataset: Optional[DotMap] = None) -> List[Human]:
+    def generate_humans(
+        params: DotMap,
+        max_time: Optional[float] = 10e7,
+        start_t: Optional[float] = 0,
+        ped_range: Optional[Tuple[int, int]] = (0, -1),
+        dataset: Optional[DotMap] = None,
+    ) -> List[Human]:
         """"world_df" is a set of trajectories organized as a pandas dataframe.
             Each row is a pedestrian at a given frame (aka time point).
             The data was taken at 25 fps so between frames is 1/25th of a second. """
@@ -233,23 +272,24 @@ class PrerecordedHuman(Human):
         fps: float = dataset.fps
         spawn_delay_s: float = dataset.spawn_delay_s
         start_idx: int = ped_range[0]  # start index
-        max_agents: int = -1 if ped_range[1] == -1 \
-            else ped_range[1] - start_idx
-        assert(fps > 0)
+        max_agents: int = -1 if ped_range[1] == -1 else ped_range[1] - start_idx
+        assert fps > 0
         swapxy: bool = dataset.swapxy
         scale_x: int = -1 if dataset.flipxn else 1
         scale_y: int = -1 if dataset.flipyn else 1
         # run through the amount of agents
         if ped_range[0] == ped_range[1]:  # have an empty range
             return []
-        datafile: str = \
-            os.path.join(params.socnav_dir, params.dataset_dir, csv_file)
-        print("Generating recorded humans from \"%s\" in range [%d, %d]\r" %
-              (dataset.name, ped_range[0], ped_range[1]), end="")
+        datafile: str = os.path.join(params.socnav_dir, params.dataset_dir, csv_file)
+        print(
+            'Generating recorded humans from "%s" in range [%d, %d]\r'
+            % (dataset.name, ped_range[0], ped_range[1]),
+            end="",
+        )
         world_df: pd.DataFrame = pd.read_csv(datafile, header=None).T
-        world_df.columns = ['frame', 'ped', 'y', 'x']
-        world_df[['frame', 'ped']] = world_df[['frame', 'ped']].astype('int')
-        start_frame: int = world_df['frame'][0]  # default start (of data)
+        world_df.columns = ["frame", "ped", "y", "x"]
+        world_df[["frame", "ped"]] = world_df[["frame", "ped"]].astype("int")
+        start_frame: int = world_df["frame"][0]  # default start (of data)
         all_peds: np.ndarray = np.unique(world_df.ped)
         max_peds: int = max(all_peds)
         if max_agents == -1:
@@ -261,36 +301,44 @@ class PrerecordedHuman(Human):
         for i in range(max_agents):
             ped_id: int = i + start_idx + 1
             if ped_id not in all_peds:
-                print("%sRequested agent %d not found in dataset: %s%s" %
-                      (color_red, ped_id, csv_file, color_reset))
+                print(
+                    "%sRequested agent %d not found in dataset: %s%s"
+                    % (color_red, ped_id, csv_file, color_reset)
+                )
                 # this can happen based off the dataset
                 continue
             ped_i = world_df[world_df.ped == ped_id]
             # gather data
             if i == 0:
                 # update start frame to be representative of "first" pedestrian
-                start_frame = list(ped_i['frame'])[0]
-            t_data = PrerecordedHuman.gather_times(ped_i, spawn_delay_s, start_t,
-                                                   start_frame, fps)
+                start_frame = list(ped_i["frame"])[0]
+            t_data = PrerecordedHuman.gather_times(
+                ped_i, spawn_delay_s, start_t, start_frame, fps
+            )
             if (ped_i.frame.iloc[0] - start_frame) / fps > max_time:
                 # assuming the data of the agents is sorted relatively based off time
                 break
-            print("Generating recorded humans from \"%s\" in range [%d, %d]: %d\r" %
-                  (dataset.name, ped_range[0], ped_range[1], ped_id), end="")
-            xytheta_data = PrerecordedHuman.gather_posn_data(ped_i, offset,
-                                                             swap_axes=swapxy,
-                                                             scale_x=scale_x,
-                                                             scale_y=scale_y)
-            interp_fns = PrerecordedHuman.init_interp_fns(xytheta_data,
-                                                          t_data)
+            print(
+                'Generating recorded humans from "%s" in range [%d, %d]: %d\r'
+                % (dataset.name, ped_range[0], ped_range[1], ped_id),
+                end="",
+            )
+            xytheta_data = PrerecordedHuman.gather_posn_data(
+                ped_i, offset, swap_axes=swapxy, scale_x=scale_x, scale_y=scale_y
+            )
+            interp_fns = PrerecordedHuman.init_interp_fns(xytheta_data, t_data)
 
             v_data = PrerecordedHuman.gather_vel_data(t_data, xytheta_data)
             # combine the xytheta with the velocity
             config_data = PrerecordedHuman.to_configs(xytheta_data, v_data)
             name = "prerec_%04d" % (i)
-            new_agent = PrerecordedHuman(t_data=t_data, posn_data=config_data,
-                                         generate_appearance=params.render_3D,
-                                         interps=interp_fns, name=name)
+            new_agent = PrerecordedHuman(
+                t_data=t_data,
+                posn_data=config_data,
+                generate_appearance=params.render_3D,
+                interps=interp_fns,
+                name=name,
+            )
             generated_humans.append(new_agent)
         # to not disturb the carriage-return print
         print()

@@ -14,7 +14,7 @@ from unit_tests.test_voxel_interpolation import main_test as test_voxel_interpol
 from unit_tests.test_personal_cost import main_test as test_goal_psc
 from utils.utils import color_reset, color_green
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_coordinate_transform()
     test_cost_function()
     test_cost()

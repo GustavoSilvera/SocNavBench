@@ -1,17 +1,25 @@
 from typing import Dict, List
+
 import numpy as np
 from agents.agent import Agent
 
 
-class Episode():
-    def __init__(self, name: str, environment: Dict[str, float or int or np.ndarray], agents: Dict[str, Agent],
-                 t_budget: float, r_start: List[float], r_goal: List[float]):
+class Episode:
+    def __init__(
+        self,
+        name: str,
+        environment: Dict[str, float or int or np.ndarray],
+        agents: Dict[str, Agent],
+        t_budget: float,
+        r_start: List[float],
+        r_goal: List[float],
+    ):
         self.name = name
         self.environment = environment
         self.agents = agents
         self.time_budget = t_budget
-        self.robot_start = r_start    # starting position of the robot
-        self.robot_goal = r_goal      # goal position of the robot
+        self.robot_start = r_start  # starting position of the robot
+        self.robot_goal = r_goal  # goal position of the robot
 
     def get_name(self) -> str:
         return self.name
