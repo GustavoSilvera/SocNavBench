@@ -1,12 +1,14 @@
 import numpy as np
-
+from typing import Tuple, Optional
 
 # Angle normalization function
-def angle_normalize(x):
+
+
+def angle_normalize(x: float) -> float:
     return (((x + np.pi) % (2 * np.pi)) - np.pi)
 
 
-def rotate_pos_nk2(pos_nk2, theta_n11):
+def rotate_pos_nk2(pos_nk2: np.ndarray, theta_n11: np.ndarray) -> np.ndarray:
     """ Utility function to rotate positions in pos_nk2
     by angles indicated in theta_n11. Assumes the rotation
     does not vary over time (hence theta_n11 not theta_nk1)."""
@@ -27,7 +29,7 @@ def rotate_pos_nk2(pos_nk2, theta_n11):
     return pos_rot_nk2
 
 
-def padded_rotation_matrix(theta_n11, shape, lower_identity=False):
+def padded_rotation_matrix(theta_n11: np.ndarray, shape: Tuple[float, float, float], lower_identity: Optional[bool] = False) -> np.ndarray:
     """ Returns a rotation matrix of shape (n, k, d, d)
     where the first (n, k, 2, 2) elements correspond to
     a 2d rotation matrix for each element in the batch
@@ -40,8 +42,7 @@ def padded_rotation_matrix(theta_n11, shape, lower_identity=False):
     dtype = theta_n11.dtype
     t_0 = theta_n11[0][0]
     # theta_nk11 = np.broadcast_to(theta_n11[:, None], (n, k, 1, 1))
-    theta_nk11 = np.ones(shape=(n, k, 1, 1), dtype=dtype) * \
-        t_0  # (element wise vector multiplication)
+    theta_nk11 = np.ones(shape=(n, k, 1, 1), dtype=dtype) * t_0
 
     first_row_nkd1 = np.concatenate([np.cos(theta_nk11),
                                      np.sin(theta_nk11),

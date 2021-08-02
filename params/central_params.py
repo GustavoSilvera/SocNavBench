@@ -2,15 +2,24 @@ import configparser
 from dotmap import DotMap
 import numpy as np
 import os
+from typing import List, Optional
+from planners.sampling_planner import SamplingPlanner
+from waypoint_grids.projected_image_space_grid import ProjectedImageSpaceGrid
+from systems.dubins_v2 import DubinsV2
+from control_pipelines.control_pipeline_v0 import ControlPipelineV0
+from trajectory.spline.spline_3rd_order import Spline3rdOrder
+from costs.quad_cost_with_wrapping import QuadraticRegulatorRef
+from utils.utils import color_orange, color_blue, color_reset
+from obstacles.sbpd_map import SBPDMap
 
 # first thing to do is create a config parser
-cwd = os.getcwd()
+cwd: str = os.getcwd()
 
 # then read in params for user editable, user-non-editable, episodes, and dataset
 user_config = configparser.ConfigParser()
 user_config.read(os.path.join(cwd, 'params/user_params.ini'))
 # get global randomness seed
-seed = user_config['socnav_params'].getint('seed')
+seed: int = user_config['socnav_params'].getint('seed')
 
 # read params file for default configurations of SocNavBench
 default_config = configparser.ConfigParser()
@@ -25,7 +34,7 @@ dataset_config = configparser.ConfigParser()
 dataset_config.read(os.path.join(cwd, 'params/dataset_params.ini'))
 
 
-def create_socnav_params():
+def create_socnav_params() -> DotMap:
     p = DotMap()
     socnav_p = user_config['socnav_params']
     p.seed = seed
@@ -55,7 +64,7 @@ def create_socnav_params():
     return p
 
 
-def create_robot_params():
+def create_robot_params() -> DotMap:
     p = DotMap()
     # Load the dependencies
     rob_p = user_config['robot_params']
@@ -75,7 +84,7 @@ def create_robot_params():
     return p
 
 
-def create_joystick_params():
+def create_joystick_params() -> DotMap:
     p = DotMap()
     # get same port as the robot
     p.port = user_config['robot_params'].getint('port')
@@ -93,7 +102,7 @@ def create_joystick_params():
     return p
 
 
-def create_dataset(dataset_name: str):
+def create_dataset(dataset_name: str) -> DotMap:
     p = DotMap()
     dataset_p = dataset_config[dataset_name]
     p.name = dataset_name
@@ -108,15 +117,15 @@ def create_dataset(dataset_name: str):
     return p
 
 
-def create_datasets_params(datasets: list):
+def create_datasets_params(datasets: List[str]) -> List[DotMap]:
     # list of dotmaps for pedestrians datasets in use
-    pedestrian_datasets = []
+    pedestrian_datasets: List[DotMap] = []
     for pdds in datasets:
         pedestrian_datasets.append(create_dataset(pdds))
     return pedestrian_datasets
 
 
-def create_test_params(test: str):
+def create_test_params(test: str) -> DotMap:
     p = DotMap()
     test_p = episodes_config[test]
     p.name = test
@@ -133,7 +142,7 @@ def create_test_params(test: str):
     return p
 
 
-def create_episodes_params():
+def create_episodes_params() -> DotMap:
     p = DotMap()
     # Load the dependencies
     epi_p = episodes_config['episodes_params']
@@ -149,21 +158,19 @@ def create_episodes_params():
     return p
 
 
-def create_planner_params():
+def create_planner_params() -> DotMap:
     p = DotMap()
 
     # Load the dependencies
     p.control_pipeline_params = create_control_pipeline_params()
 
-    from planners.sampling_planner import SamplingPlanner
     # Default of a planner
     p.planner = SamplingPlanner
     return p
 
 
-def create_waypoint_params():
+def create_waypoint_params() -> DotMap:
     p = DotMap()
-    from waypoint_grids.projected_image_space_grid import ProjectedImageSpaceGrid
     p.grid = ProjectedImageSpaceGrid
 
     # Load the dependencies
@@ -175,8 +182,8 @@ def create_waypoint_params():
     p.bound_min = eval(wayp_p.get('bound_min'))
     p.bound_max = eval(wayp_p.get('bound_max'))
 
-    camera_params = create_camera_params()
-    robot_params = create_robot_params().physical_params
+    camera_params: DotMap = create_camera_params()
+    robot_params: DotMap = create_robot_params().physical_params
 
     # Ensure square image and aspect ratio = 1
     # as ProjectedImageSpaceGrid assumes this
@@ -202,9 +209,8 @@ def create_waypoint_params():
     return p
 
 
-def create_system_dynamics_params():
+def create_system_dynamics_params() -> DotMap:
     p = DotMap()
-    from systems.dubins_v2 import DubinsV2
     p.system = DubinsV2
 
     # Load the user editable params
@@ -235,7 +241,7 @@ def create_system_dynamics_params():
     return p
 
 
-def create_control_pipeline_params():
+def create_control_pipeline_params() -> DotMap:
     p = DotMap()
 
     p.system_dynamics_params = create_system_dynamics_params()
@@ -245,7 +251,6 @@ def create_control_pipeline_params():
     cp_p = user_config['control_pipeline_params']
     cp_p2 = default_config['control_pipeline_params']
 
-    from control_pipelines.control_pipeline_v0 import ControlPipelineV0
     p.pipeline = ControlPipelineV0
 
     # The directory for saving the control pipeline files
@@ -255,7 +260,6 @@ def create_control_pipeline_params():
     p.dt = p.system_dynamics_params.dt
 
     # Spline parameters
-    from trajectory.spline.spline_3rd_order import Spline3rdOrder
     p.spline_params = \
         DotMap(spline=Spline3rdOrder,
                max_final_time=cp_p.getfloat('max_final_time'),
@@ -263,7 +267,6 @@ def create_control_pipeline_params():
     p.minimum_spline_horizon = cp_p.getfloat('minimum_spline_horizon')
 
     # LQR setting parameters
-    from costs.quad_cost_with_wrapping import QuadraticRegulatorRef
     q_coeffs = eval(cp_p2.get('quad_coeffs'))
     l_coeffs = eval(cp_p2.get('linear_coeffs'))
     p.lqr_params = \
@@ -290,7 +293,7 @@ def create_control_pipeline_params():
     return p
 
 
-def create_simulator_params(verbose=True):
+def create_simulator_params(verbose=True) -> DotMap:
     p = DotMap()
     sim_p = user_config['simulator_params']
     p.dt = sim_p.getfloat('dt')
@@ -310,7 +313,6 @@ def create_simulator_params(verbose=True):
     # Load obstacle map params
     p.obstacle_map_params = create_obstacle_map_params()
     # much faster to only render the topview rather than use the 3D renderer
-    from utils.utils import color_orange, color_blue, color_reset
     if verbose:
         print("%sSimulator running in %s mode, dt=%.3fs%s" %
               (color_orange, sim_p.get('synchronous_mode'), p.dt, color_reset))
@@ -326,7 +328,7 @@ def create_simulator_params(verbose=True):
     return p
 
 
-def create_agent_params(with_planner=False, with_obstacle_map=False):
+def create_agent_params(with_planner: Optional[bool] = False, with_obstacle_map: Optional[bool] = False) -> DotMap:
     p = DotMap()
     agent_p = user_config["agent_params"]
     agent_p2 = default_config["agent_params"]
@@ -400,14 +402,13 @@ def create_agent_params(with_planner=False, with_obstacle_map=False):
     return p
 
 
-def create_obstacle_map_params():
+def create_obstacle_map_params() -> DotMap:
     p = DotMap()
 
     # Load the dependencies
     obst_p = default_config['obstacle_map_params']
     # p.renderer_params = create_base_params()
 
-    from obstacles.sbpd_map import SBPDMap
     p.obstacle_map = SBPDMap
 
     # Size of map
@@ -428,7 +429,7 @@ def create_obstacle_map_params():
     return p
 
 
-def create_test_map_params(p=None):
+def create_test_map_params(p: DotMap = None) -> DotMap:
     if p is None:
         p = DotMap()
     # NOTE: this is very much subject to change with diff maps
@@ -450,7 +451,7 @@ def create_test_map_params(p=None):
     return p
 
 
-def create_building_params(full_render: bool = False):
+def create_building_params(full_render: Optional[bool] = False) -> DotMap:
     p = DotMap()
     # Load the dependencies
     build_p = user_config['building_params']
@@ -469,7 +470,7 @@ def create_building_params(full_render: bool = False):
     return p
 
 
-def create_camera_params():
+def create_camera_params() -> DotMap:
     p = DotMap()
     camera_p = user_config['camera_params']
     p.modalities = eval(camera_p.get('modalities'))
@@ -488,72 +489,73 @@ def create_camera_params():
 """BEGIN DIRECTORY FUNCTIONS"""
 
 
-def get_path_to_socnav():
+def get_path_to_socnav() -> str:
     # can use a literal string in params.ini as the path
-    # PATH_TO_HUMANAV = config['base_params']['base_directory']
+    # PATH_TO_SOCNAV = config['base_params']['base_directory']
     # or just use the relative path
-    PATH_TO_HUMANAV = os.getcwd()
-    if not os.path.exists(PATH_TO_HUMANAV):
+    PATH_TO_SOCNAV: str = os.getcwd()
+    if not os.path.exists(PATH_TO_SOCNAV):
         # the main directory should be the parent of params/central_params.py
-        PATH_TO_HUMANAV = os.path.join(os.path.dirname(__file__), '..')
-        if os.path.exists(PATH_TO_HUMANAV):
-            return PATH_TO_HUMANAV
+        PATH_TO_SOCNAV = os.path.join(os.path.dirname(__file__), '..')
+        if os.path.exists(PATH_TO_SOCNAV):
+            return PATH_TO_SOCNAV
         print('\033[31m', "ERROR: Failed to find tbd_SocNavBench installation at",
-              PATH_TO_HUMANAV, '\033[0m')
-        os._exit(1)  # Failure condition
-    return PATH_TO_HUMANAV
+              PATH_TO_SOCNAV, '\033[0m')
+        exit(1)  # Failure condition
+    return PATH_TO_SOCNAV
 
 
-def base_data_dir():
-    PATH_TO_BASE_DIR = os.path.join(get_path_to_socnav(), 'wayptnav_data')
+def base_data_dir() -> str:
+    PATH_TO_BASE_DIR: str = os.path.join(get_path_to_socnav(), 'wayptnav_data')
     if not os.path.exists(PATH_TO_BASE_DIR):
         print('\033[31m', "ERROR: Failed to find the wayptnav_data dir at",
               PATH_TO_BASE_DIR, '\033[0m')
-        os._exit(1)  # Failure condition
+        exit(1)  # Failure condition
     return PATH_TO_BASE_DIR
 
 
-def get_sbpd_data_dir():
-    PATH_TO_SBPD = os.path.join(
+def get_sbpd_data_dir() -> str:
+    PATH_TO_SBPD: str = os.path.join(
         get_path_to_socnav(), 'sd3dis/stanford_building_parser_dataset')
     if not os.path.exists(PATH_TO_SBPD):
         print('\033[31m', "ERROR: Failed to find sd3dis installation at",
               PATH_TO_SBPD, '\033[0m')
-        os._exit(1)  # Failure condition
+        exit(1)  # Failure condition
     return PATH_TO_SBPD
 
 
-def get_traversible_dir():
-    PATH_TO_TRAVERSIBLES = os.path.join(get_sbpd_data_dir(), 'traversibles')
+def get_traversible_dir() -> str:
+    PATH_TO_TRAVERSIBLES: str = os.path.join(
+        get_sbpd_data_dir(), 'traversibles')
     if not os.path.exists(PATH_TO_TRAVERSIBLES):
         print('\033[31m', "ERROR: Failed to find traversible directory at",
               PATH_TO_TRAVERSIBLES, '\033[0m')
-        os._exit(1)  # Failure condition
+        exit(1)  # Failure condition
     return PATH_TO_TRAVERSIBLES
 
 
-def get_surreal_mesh_dir():
-    PATH_TO_SURREAL_MESH = os.path.join(
+def get_surreal_mesh_dir() -> str:
+    PATH_TO_SURREAL_MESH: str = os.path.join(
         get_path_to_socnav(), 'surreal/code/human_meshes')
     if not os.path.exists(PATH_TO_SURREAL_MESH):
         print('\033[31m', "ERROR: Failed to find SURREAL meshes at",
               PATH_TO_SURREAL_MESH, '\033[0m')
-        os._exit(1)  # Failure condition
+        exit(1)  # Failure condition
     return PATH_TO_SURREAL_MESH
 
 
-def get_surreal_texture_dir():
-    PATH_TO_SURREAL_TEXTURES = os.path.join(
+def get_surreal_texture_dir() -> str:
+    PATH_TO_SURREAL_TEXTURES: str = os.path.join(
         get_path_to_socnav(), 'surreal/code/human_textures')
     if not os.path.exists(PATH_TO_SURREAL_TEXTURES):
         print('\033[31m', "ERROR: Failed to find SURREAL textures at",
               PATH_TO_SURREAL_TEXTURES, '\033[0m')
-        os._exit(1)  # Failure condition
+        exit(1)  # Failure condition
     return PATH_TO_SURREAL_TEXTURES
 
 
 """BEGIN OTHER UTILS"""
 
 
-def get_seed():
+def get_seed() -> int:
     return seed

@@ -1,17 +1,24 @@
 import os
+from socnav.socnav_renderer import SocNavRenderer
 import time
+import numpy as np
 import threading
 from simulators.simulator_helper import SimulatorHelper
 from agents.agent import Agent
+from agents.robot_agent import RobotAgent
 from simulators.sim_state import SimState, HumanState, AgentState
 from utils.utils import touch, absmax, iter_print, euclidean_dist2
 from utils.utils import color_red, color_green, color_reset, color_print, termination_cause_to_color
+from typing import Dict, List, Tuple, Optional
+from dotmap import DotMap
+from obstacles.sbpd_map import SBPDMap
+import pandas as pd
 
 
 class Simulator(SimulatorHelper):
     """The centralized simulator of SocNavBench """
 
-    def __init__(self, environment: dict, renderer=None, episode_params=None, verbose=True):
+    def __init__(self, environment: Dict[str, int or float or np.ndarray], renderer: Optional[SocNavRenderer] = None, episode_params: Optional[DotMap] = None, verbose: Optional[bool] = True):
         """ Initializer for the central simulator
         Args:
             environment (dict): dictionary housing the obj map (bitmap) and more
@@ -21,21 +28,21 @@ class Simulator(SimulatorHelper):
         # init SimulatorHelper base class
         super().__init__(environment, verbose)
         # init Simulator implementation
-        self.episode_params = episode_params
+        self.episode_params: DotMap = episode_params
         # output directory is updated again if there is a robot (and algorithm) in the simulator
         self.params.output_directory = \
             os.path.join(self.params.socnav_params.socnav_dir,
                          "tests/socnav/", "test_" + self.algo_name,
                          self.episode_params.name)
-        self.obstacle_map = self.init_obstacle_map(renderer)
+        self.obstacle_map: SBPDMap = self.init_obstacle_map(renderer)
 
-    def init_sim_data(self, verbose: bool = True):
-        self.total_agents = len(self.agents) + len(self.backstage_prerecs)
+    def init_sim_data(self, verbose: Optional[bool] = True) -> None:
+        self.total_agents: int = len(self.agents) + len(self.backstage_prerecs)
         # Create pre-simulation metadata
         if verbose:
             print("Running simulation on", self.total_agents, "agents")
         # scale the simulator time
-        self.dt = self.params.delta_t_scale * self.params.dt
+        self.dt: float = self.params.delta_t_scale * self.params.dt
         # update the baseline agents' simulation refresh rate
         Agent.set_sim_dt(self.dt)
         Agent.set_sim_t(self.sim_t)
@@ -48,14 +55,14 @@ class Simulator(SimulatorHelper):
                   self.params.dt, "or increase simulation delta_t%s" % color_reset)
             exit(1)
 
-    def loop_condition(self):
+    def loop_condition(self) -> bool:
         if self.robot:
             # stop the simulation if the robot has exited
             return not self.robot.end_acting
         # else just run until there are no more agents
         return self.exists_running_agent() or self.exists_running_prerec()
 
-    def simulate(self):
+    def simulate(self) -> None:
         """ A function that simulates an entire episode. The gen_agents are updated with simultaneous
         threads running their update() functions and updating the robot with commands from the
         external joystick process.
@@ -63,17 +70,17 @@ class Simulator(SimulatorHelper):
         # initialize pre-simulation metadata
         self.init_sim_data()
         # keep track of wall-time in the simulator
-        start_time = time.time()
+        start_time: float = time.time()
         # get initial state
-        current_state = self.save_state()
+        current_state: SimState = self.save_state()
         # initialize robot update thread
-        r_t = self.init_robot_listener_thread(current_state)
+        r_t: threading.Thread = self.init_robot_listener_thread(current_state)
         # start iteration
-        iteration = 0
+        iteration: int = 0
         self.print_sim_progress(iteration)
         # run simulation
         while self.sim_t <= self.episode_params.max_time and self.loop_condition():
-            wall_t = time.time()
+            wall_t: float = time.time()
             # update the time for all agents
             Agent.set_sim_t(self.sim_t)
             # initiate thread operations
@@ -97,10 +104,10 @@ class Simulator(SimulatorHelper):
         # finish the simulate
         self.conclude_simulation(start_time, iteration, r_t)
 
-    def synchronize(self, wall_t: float):
+    def synchronize(self, wall_t: float) -> None:
         # get time difference between NOW and when the wall_t was last updated
         # (occurs at the start of every simulate() cycle )
-        w_dt = time.time() - wall_t
+        w_dt: float = time.time() - wall_t
         # TODO: note there is danger if w_dt takes longer than self.dt
         if not self.params.block_joystick:
             if w_dt > self.dt:
@@ -110,7 +117,7 @@ class Simulator(SimulatorHelper):
             # sleep to run in as-close-as-possible to real-time
             time.sleep(self.dt - w_dt)
 
-    def conclude_simulation(self, start_time, iteration, r_t):
+    def conclude_simulation(self, start_time: float, iteration: int, r_t: threading.Thread) -> None:
         # free all the gen_agents
         for a in self.agents.values():
             del a
@@ -142,7 +149,7 @@ class Simulator(SimulatorHelper):
             # finally close the robot listener thread
             self.decommission_robot(r_t)
 
-    def save_state(self, wall_t: float = 0.0):
+    def save_state(self, wall_t: Optional[float] = 0.0) -> SimState:
         """Captures the current state of the world to be saved to self.sim_states
         Args:
             sim_t (float): the current time in the simulator in seconds
@@ -153,15 +160,15 @@ class Simulator(SimulatorHelper):
         """
         # NOTE: when using a modular environment, make saved_env a deepcopy
         saved_env = self.environment
-        pedestrians = {}
+        pedestrians: Dict[str, HumanState] = {}
         for a in self.agents.values():
             pedestrians[a.get_name()] = HumanState(a)
         # deepcopy all prerecorded gen_agents
         for a in self.prerecs.values():
             pedestrians[a.get_name()] = HumanState(a)
         # Save all the robots
-        saved_robots = {}
-        last_robot_collision = ""
+        saved_robots: Dict[str, RobotAgent] = {}
+        last_robot_collision: str = ""
         if self.robot:
             saved_robots[self.robot.get_name()] = AgentState(self.robot)
             last_robot_collision = self.robot.latest_collider
@@ -169,20 +176,19 @@ class Simulator(SimulatorHelper):
                                  self.sim_t, wall_t, self.dt, self.episode_params.name,
                                  self.episode_params.max_time, last_robot_collision)
         # Save current state to a class dictionary indexed by simulator time
-        sim_t_step = round(self.sim_t / self.dt)
+        sim_t_step: int = round(self.sim_t / self.dt)
         self.sim_states[sim_t_step] = current_state
         # debug prints
         return current_state
 
     """ BEGIN SCORING UTILS """
 
-    def generate_episode_score_report(self, filename='episode_score'):
+    def generate_episode_score_report(self, filename: Optional[str] = 'episode_score') -> None:
         # should do this in some formal format
         # json? pandas? how to aggregate per episode?
-        import pandas as pd
         # TODO how to have a list of metrics? for now hardcoded
         # different analysis based on success and failure
-        metrics_list = [
+        metrics_list: List[str] = [
             # meta
             "success",
             "termination_cause",
@@ -252,12 +258,12 @@ class Simulator(SimulatorHelper):
                   (color_red, color_reset))
         return
 
-    def generate_sim_log(self, filename='episode_log.txt'):
-        import io
-        abs_filename = os.path.join(self.params.output_directory, filename)
+    def generate_sim_log(self, filename: Optional[str] = 'episode_log.txt') -> None:
+        abs_filename: str = os.path.join(
+            self.params.output_directory, filename)
         touch(abs_filename)  # create if dosent already exist
-        ep_params = self.episode_params
-        data = ""
+        ep_params: DotMap = self.episode_params
+        data: str = ""
         data += "****************EPISODE INFO****************\n"
         data += "Episode name: %s\n" % ep_params.name
         data += "Building name: %s\n" % ep_params.map_name
@@ -311,7 +317,7 @@ class Simulator(SimulatorHelper):
 
     """ BEGIN ROBOT UTILS """
 
-    def init_robot_listener_thread(self, current_state: SimState, power_on=True):
+    def init_robot_listener_thread(self, current_state: SimState, power_on: Optional[bool] = True) -> Optional[threading.Thread]:
         """Initializes the robot listener by establishing socket connections to
         the joystick, transmitting the (constant) obstacle map (environment),
         and starting the robot thread.
@@ -350,7 +356,7 @@ class Simulator(SimulatorHelper):
         print("Robot powering on")
         return r_listener_thread
 
-    def decommission_robot(self, r_listener_thread):
+    def decommission_robot(self, r_listener_thread: threading.Thread) -> None:
         """Turns off the robot and joins the robot's update thread
         Args:
             r_listener_thread (Thread): the robot update thread to join
@@ -363,7 +369,7 @@ class Simulator(SimulatorHelper):
                 r_listener_thread.join()
             del r_listener_thread
 
-    def pedestrians_update(self, current_state: SimState):
+    def pedestrians_update(self, current_state: SimState) -> None:
         if self.params.use_multithreading:
             agent_threads = self.init_auto_agent_threads(current_state)
             prerec_threads = self.init_prerec_agent_threads(current_state)
@@ -374,3 +380,15 @@ class Simulator(SimulatorHelper):
             self.join_threads(pedestrian_threads)
         else:
             self.loop_through_pedestrians(current_state)
+
+    def add_agents(self, agents: List[Agent]) -> None:
+        """
+        Add existing agents to the simulator
+        """
+        for agent in agents:
+            # TODO: make sure the renderer works
+            if self.params.render_3D:
+                self.r.add_human(agent)
+                self.environment["human_traversible"] = \
+                    np.array(self.r.get_human_traversible())
+            self.add_agent(agent)

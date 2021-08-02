@@ -1,3 +1,4 @@
+from planners.planner import Planner
 import numpy as np
 import copy
 
@@ -5,33 +6,36 @@ from objectives.objective_function import ObjectiveFunction
 from objectives.angle_distance import AngleDistance
 from objectives.goal_distance import GoalDistance
 from objectives.obstacle_avoidance import ObstacleAvoidance
-from objectives.personal_space_cost import PersonalSpaceCost
 
 from trajectory.trajectory import SystemConfig, Trajectory
 from utils.fmm_map import FmmMap
 from agents.agent_base import AgentBase
+from obstacles.sbpd_map import SBPDMap
+from systems.dynamics import Dynamics
 from params.central_params import create_agent_params
+from typing import Any, Dict, Tuple, Optional
+from dotmap import DotMap
 
 
-class Agent(AgentBase):
+class Agent(AgentBase):  # TODO: rename to AutoAgent or SamplingPlannerAgent
     sim_t: float = None   # global simulator time that all agents know
     sim_dt: float = None  # simulator (world) refresh rate
 
-    def __init__(self, start, goal, name):
+    def __init__(self, start: SystemConfig, goal: SystemConfig, name: str):
         # Dynamics and movement attributes
-        self.fmm_map = None
-        self.path_step = 0
+        self.fmm_map: FmmMap = None
+        self.path_step: int = 0
         # NOTE: JSON serialization is done within sim_state.py
-        self.velocities = {}
-        self.accelerations = {}
+        self.velocities: Dict[float, float] = {}
+        self.accelerations: Dict[float, float] = {}
         # every *planning* agent gets their own copy of 'sim state' history
         self.world_state = None
         super().__init__(start, goal, name)
 
-    def simulation_init(self, sim_map, with_planner: bool = True,
-                        with_system_dynamics: bool = True,
-                        with_objectives: bool = True,
-                        keep_episode_running: bool = False):
+    def simulation_init(self, sim_map: SBPDMap, with_planner: Optional[bool] = True,
+                        with_system_dynamics: Optional[bool] = True,
+                        with_objectives: Optional[bool] = True,
+                        keep_episode_running: Optional[bool] = False) -> None:
         """ Initializes important fields for the Simulator"""
         if self.params is None:
             self.params = create_agent_params(with_planner=with_planner)
@@ -49,7 +53,7 @@ class Agent(AgentBase):
             # Initialize system dynamics and planner fields
             self.system_dynamics = Agent._init_system_dynamics(self)
         # the point in the trajectory where the agent collided
-        self.collision_point_k = np.inf
+        self.collision_point_k: float = np.inf
         # whether or not to end the episode upon robot collision or continue
         self.keep_episode_running = keep_episode_running
         # default trajectory
@@ -57,39 +61,42 @@ class Agent(AgentBase):
 
     # Setters for the Agent class
 
-    def update_world(self, state):
+    def update_world(self, state) -> None:
+        # TODO: state is a SimState, but importing it yields a circular dep error
         self.world_state = state
 
-    def just_collided_with_robot(self, robot):
+    def just_collided_with_robot(self, robot: AgentBase) -> bool:
+        # NOTE: technically the robot is a RobotAgent which is also an Agent which is also an AgentBase
         collision = self.get_collided()
         with_robot = (self.latest_collider == robot.get_name())
         just_now = self.get_collision_cooldown() == self.params.collision_cooldown_amnt - 1
         return collision and with_robot and just_now
 
     @staticmethod
-    def set_sim_dt(sim_dt):
+    def set_sim_dt(sim_dt: float) -> None:
         # all the agents know the same simulator refresh rate
         Agent.sim_dt = sim_dt
 
     @staticmethod
-    def set_sim_t(t):
+    def set_sim_t(t: float) -> None:
         # all agents know the same world time
         Agent.sim_t = t
 
     @staticmethod
-    def restart_coloring():
+    def restart_coloring() -> None:
         AgentBase.color_indx = 0
 
-    def update(self, sim_state=None):
+    def update(self, sim_state=None) -> None:
         """ Run the agent.plan() and agent.act() functions to generate a path and follow it """
         self.sense(sim_state)
         self.plan()
         self.act()
 
-    def sense(self, sim_state, dt: int = 0.05):
+    def sense(self, sim_state, dt: Optional[float] = 0.05) -> None:
+        # TODO: sim_state is a SimState, but importing it yields a circular dep error
         self.update_world(sim_state)
 
-    def plan(self):
+    def plan(self) -> None:
         """
         Runs the planner for one step from config to generate a
         subtrajectory, the resulting robot config after the robot executes
@@ -103,13 +110,14 @@ class Agent(AgentBase):
         if self.end_acting:
             return
 
-        self.planner_data = self.planner.optimize(self.planned_next_config,
-                                                  self.goal_config)
-        traj_segment = \
-            Trajectory.new_traj_clip_along_time_axis(self.planner_data['trajectory'],
-                                                     self.params.control_horizon,
-                                                     repeat_second_to_last_speed=True)
-        self.planned_next_config = \
+        self.planner_data: Dict[str, Any] = \
+            self.planner.optimize(self.planned_next_config,
+                                  self.goal_config)
+        traj_segment = Trajectory.new_traj_clip_along_time_axis(
+            self.planner_data['trajectory'],
+            self.params.control_horizon,
+            repeat_second_to_last_speed=True)
+        self.planned_next_config: SystemConfig = \
             SystemConfig.init_config_from_trajectory_time_index(
                 traj_segment, t=-1)
 
@@ -118,7 +126,7 @@ class Agent(AgentBase):
                                                track_trajectory_acceleration=tr_acc)
         self.enforce_termination_conditions()
 
-    def act(self):
+    def act(self) -> None:
         """ A utility method to initialize a config object
         from a particular timestep of a given trajectory object"""
         if self.end_acting:
@@ -154,7 +162,7 @@ class Agent(AgentBase):
 
     """BEGIN HELPER FUNCTIONS"""
 
-    def process_planner_data(self):
+    def process_planner_data(self) -> Tuple[Trajectory, Dict[str, Any]]:
         """
         Process the planners current plan. This could mean applying
         open loop control or LQR feedback control on a system.
@@ -194,7 +202,7 @@ class Agent(AgentBase):
     """BEGIN STATIC HELPER FUNCTIONS"""
 
     @staticmethod
-    def _init_obj_fn(self, params=None):
+    def _init_obj_fn(self, params: Optional[DotMap] = None) -> ObjectiveFunction:
         """
         Initialize the objective function given sim params
         """
@@ -217,7 +225,7 @@ class Agent(AgentBase):
         return obj_fn
 
     @staticmethod
-    def _update_obj_fn(self):
+    def _update_obj_fn(self) -> None:
         """ 
         Update the objective function to use a new obstacle_map and fmm map
         """
@@ -228,24 +236,18 @@ class Agent(AgentBase):
                 objective.fmm_map = self.fmm_map
             elif isinstance(objective, AngleDistance):
                 objective.fmm_map = self.fmm_map
-            elif isinstance(objective, PersonalSpaceCost):
-                pass
             else:
-                assert False
+                pass  # TODO: raise error on unsupported obj fns
 
     @staticmethod
-    def _init_psc_objective(params):
-        return PersonalSpaceCost(params=params.personal_space_objective)
-
-    @staticmethod
-    def _init_planner(self, params=None):
+    def _init_planner(self, params: Optional[DotMap] = None) -> Planner:
         if(params is None):
             params = self.params
         return params.planner_params.planner(obj_fn=self.obj_fn,
                                              params=params.planner_params)
 
     @staticmethod
-    def _init_fmm_map(self, goal_pos_n2=None, params=None):
+    def _init_fmm_map(self, goal_pos_n2: Optional[np.ndarray] = None, params: Optional[DotMap] = None) -> None:
         if(params is None):
             params = self.params
         obstacle_map = self.obstacle_map
@@ -262,7 +264,7 @@ class Agent(AgentBase):
         Agent._update_fmm_map(self)
 
     @staticmethod
-    def _init_system_dynamics(self, params=None):
+    def _init_system_dynamics(self, params: Optional[DotMap] = None) -> Dynamics:
         """
         If there is a control pipeline (i.e. model based method)
         return its system_dynamics. Else create a new system_dynamics
@@ -278,7 +280,7 @@ class Agent(AgentBase):
             return p.system(dt=p.dt, params=p)
 
     @staticmethod
-    def _update_fmm_map(self, params=None):
+    def _update_fmm_map(self, params: Optional[DotMap] = None) -> None:
         """
         For SBPD the obstacle map does not change,
         so just update the goal position.
@@ -293,15 +295,15 @@ class Agent(AgentBase):
 
     # wrapper functions for the helper base class
     @staticmethod
-    def apply_control_open_loop(self, start_config, control_nk2,
-                                T, sim_mode='ideal'):
+    def apply_control_open_loop(self, start_config: SystemConfig, control_nk2: np.ndarray,
+                                T: int, sim_mode: Optional[str] = 'ideal') -> Tuple[Trajectory, np.ndarray]:
         return super().apply_control_open_loop(self, start_config,
                                                control_nk2, T, sim_mode)
 
     @staticmethod
-    def apply_control_closed_loop(self, start_config, trajectory_ref,
-                                  k_array_nTf1, K_array_nTfd, T,
-                                  sim_mode='ideal'):
+    def apply_control_closed_loop(self, start_config: SystemConfig, trajectory_ref: Trajectory,
+                                  k_array_nTf1: np.ndarray, K_array_nTfd: np.ndarray, T: int,
+                                  sim_mode: Optional[str] = 'ideal') -> Tuple[Trajectory, np.ndarray]:
         return super().apply_control_closed_loop(self, start_config, trajectory_ref,
                                                  k_array_nTf1, K_array_nTfd, T,
-                                                 sim_mode='ideal')
+                                                 sim_mode=sim_mode)

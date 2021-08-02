@@ -1,5 +1,4 @@
 import numpy as np
-from simulators.sim_state import SimState
 # from objectives.personal_space_cost import PersonalSpaceCost
 
 

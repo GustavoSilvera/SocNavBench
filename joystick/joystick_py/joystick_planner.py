@@ -1,46 +1,57 @@
+from objectives.personal_space_cost import PersonalSpaceCost
+from objectives.objective_function import ObjectiveFunction
+from dotmap import DotMap
+from obstacles.sbpd_map import SBPDMap
+from socnav.socnav_renderer import SocNavRenderer
 import numpy as np
 from joystick_py.joystick_base import JoystickBase
 from params.central_params import create_agent_params
-from trajectory.trajectory import Trajectory
+from trajectory.trajectory import SystemConfig, Trajectory
 from utils.utils import generate_config_from_pos_3, euclidean_dist2
 from agents.agent import Agent
+from typing import List, Optional
 
 
 class JoystickWithPlanner(JoystickBase):
     def __init__(self):
         # planner variables
-        self.commands = []  # the list of commands sent to the robot to execute
-        self.simulator_joystick_update_ratio = 1
+        # the list of commands sent to the robot to execute
+        self.commands: List[str] = []
+        self.simulator_joystick_update_ratio: int = 1
         # our 'positions' are modeled as (x, y, theta)
-        self.robot_current = None    # current position of the robot
-        self.robot_v = 0     # not tracked in the base simulator
-        self.robot_w = 0     # not tracked in the base simulator
+        self.robot_current: np.ndarray = None    # current position of the robot
+        self.robot_v: float = 0     # not tracked in the base simulator
+        self.robot_w: float = 0     # not tracked in the base simulator
         super().__init__("SamplingPlanner")  # parent class needs to know the algorithm
 
-    def init_obstacle_map(self, renderer=0):
+    def init_obstacle_map(self, renderer: Optional[SocNavRenderer] = 0) -> SBPDMap:
         """ Initializes the sbpd map."""
-        p = self.agent_params.obstacle_map_params
+        p: DotMap = self.agent_params.obstacle_map_params
         env = self.current_ep.get_environment()
         return p.obstacle_map(p, renderer,
                               res=float(env["map_scale"]) * 100.,
                               map_trav=np.array(env["map_traversible"])
                               )
 
-    def init_control_pipeline(self):
+    def init_control_pipeline(self) -> None:
         # NOTE: this is like an init() run *after* obtaining episode metadata
         # robot start and goal to satisfy the old Agent.planner
-        self.start_config = generate_config_from_pos_3(self.get_robot_start())
-        self.goal_config = generate_config_from_pos_3(self.get_robot_goal())
+        self.start_config: SystemConfig = generate_config_from_pos_3(
+            self.get_robot_start())
+        self.goal_config: SystemConfig = generate_config_from_pos_3(
+            self.get_robot_goal())
         # rest of the 'Agent' params used for the joystick planner
-        self.agent_params = create_agent_params(with_planner=True,
-                                                with_obstacle_map=True)
+        self.agent_params: DotMap = create_agent_params(with_planner=True,
+                                                        with_obstacle_map=True)
         # update generic 'Agent params' with joystick-specific params
         self.agent_params.episode_horizon_s = self.joystick_params.episode_horizon_s
         self.agent_params.control_horizon_s = self.joystick_params.control_horizon_s
         # init obstacle map
-        self.obstacle_map = self.init_obstacle_map()
-        self.obj_fn = Agent._init_obj_fn(self, params=self.agent_params)
-        psc_obj = Agent._init_psc_objective(params=self.agent_params)
+        self.obstacle_map: SBPDMap = self.init_obstacle_map()
+        self.obj_fn: ObjectiveFunction = Agent._init_obj_fn(
+            self, params=self.agent_params)
+        psc_obj = PersonalSpaceCost(
+            params=self.agent_params.personal_space_objective)
         self.obj_fn.add_objective(psc_obj)
 
         # Initialize Fast-Marching-Method map for agent's pathfinding

@@ -4,7 +4,8 @@ from objectives.angle_distance import AngleDistance
 from trajectory.trajectory import Trajectory
 from utils.fmm_map import FmmMap
 from dotmap import DotMap
-from utils.utils import load_building, color_green, color_reset
+from utils.utils import color_green, color_reset
+from utils.socnav_utils import load_building
 from params.central_params import create_socnav_params, create_test_map_params
 
 

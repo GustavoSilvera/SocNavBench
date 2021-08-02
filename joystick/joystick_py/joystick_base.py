@@ -1,57 +1,60 @@
+from obstacles.sbpd_map import SBPDMap
 import socket
 import json
 import os
 import random
+import pandas as pd
 from utils.utils import *
 from params.central_params import create_joystick_params, get_path_to_socnav, create_robot_params, get_seed
+from params.central_params import create_system_dynamics_params
 from simulators.sim_state import SimState
 from simulators.episode import Episode
-
-
+from typing import Any, Dict, List, Optional
+from agents.agent import Agent
 # seed the random number generator
 random.seed(get_seed())
 
 
 class JoystickBase():
-    def __init__(self, algorithm_name: str = "socnav"):
-        self.joystick_params = create_joystick_params()
-        self.algorithm_name = algorithm_name
+    def __init__(self, algorithm_name: Optional[str] = "socnav"):
+        self.joystick_params: DotMap = create_joystick_params()
+        self.algorithm_name: str = algorithm_name
         print("Joystick running %s algorithm" % self.algorithm_name)
         # include the system dynamics for both posn & velocity commands
-        from params.central_params import create_system_dynamics_params
         self.system_dynamics_params = create_system_dynamics_params()
         if self.joystick_params.use_system_dynamics:
             print("Joystick using system dynamics")
         else:
             print("Joystick using positional dynamics")
         # episode fields
-        self.episode_names = []
-        self.current_ep = None
-        self.sim_state_now = None
+        self.episode_names: List[str] = []
+        self.current_ep: Episode = None
+        self.sim_state_now: SimState = None
         # main fields
-        self.joystick_on = True  # status of the joystick
+        self.joystick_on: bool = True  # status of the joystick
         # socket fields
-        self.robot_sender_socket = None    # the socket for sending commands to the robot
-        self.robot_receiver_socket = None  # world info receiver socket
+        # the socket for sending commands to the robot
+        self.robot_sender_socket: socket.socket = None
+        self.robot_receiver_socket: socket.socket = None  # world info receiver socket
         # flipped bc joystick-recv = robot-send & vice versa
-        self.send_ID = create_robot_params().recv_ID
-        self.recv_ID = create_robot_params().send_ID
+        self.send_ID: str = create_robot_params().recv_ID
+        self.recv_ID: str = create_robot_params().send_ID
         print("Initiated joystick locally (AF_UNIX) at \"%s\" & \"%s\"" %
               (self.send_ID, self.recv_ID))
         # potentially add more fields based off the params
         self.param_based_init()
 
-    def param_based_init(self):
+    def param_based_init(self) -> None:
         # data tracking with pandas
         if self.joystick_params.write_pandas_log:
-            import pandas as pd
-            global pd
-            self.pd_df = None    # pandas dataframe for writing to a csv
-            self.agent_log = {}  # log of all the agents as updated by sensing
+            self.pd_df: pd.DataFrame = None    # pandas dataframe for writing to a csv
+            # log of all the agents as updated by sensing
+            self.agent_log: Dict[str, Dict[float, np.ndarray]] = {}
 
         # keeping an explicit log of every sim_state indexed by time
         if self.joystick_params.track_sim_states:
-            self.sim_states = {}  # log of simulator states indexed by time
+            # log of simulator states indexed by time
+            self.sim_states: Dict[float, SimState] = {}
 
         # tracking velocity and acceleration of the agents from the sim states
         if self.joystick_params.track_vel_accel:
@@ -59,32 +62,32 @@ class JoystickBase():
             from simulators.sim_state import compute_all_velocities as velocities
             global accelerations
             from simulators.sim_state import compute_all_accelerations as accelerations
-            self.velocities = {}     # velocities of all agents as sensed by the joystick
-            self.accelerations = {}  # accelerations of all agents as sensed by the joystick
+            # velocities of all agents as sensed by the joystick
+            self.velocities: Dict[float, float] = {}
+            # accelerations of all agents as sensed by the joystick
+            self.accelerations: Dict[float, float] = {}
 
         # plotting the sim states received from the robot
         if self.joystick_params.generate_movie:
             import matplotlib as mpl
             mpl.use('Agg')  # for rendering without a display
-            import matplotlib.pyplot as plt
-            from utils.image_utils import save_to_gif
 
-    def get_episodes(self):
+    def get_episodes(self) -> List[str]:
         return self.episode_names
 
-    def get_robot_start(self):
+    def get_robot_start(self) -> List[float]:
         return self.current_ep.get_robot_start()
 
-    def get_robot_goal(self):
+    def get_robot_goal(self) -> List[float]:
         return self.current_ep.get_robot_goal()
 
-    def init_obstacle_map(self):
+    def init_obstacle_map(self) -> SBPDMap:
         raise NotImplementedError
 
-    def init_control_pipeline(self):
+    def init_control_pipeline(self) -> None:
         pass
 
-    def send_cmds(self, cmds, send_vel_cmds: bool = True):
+    def send_cmds(self, cmds: List[str], send_vel_cmds: Optional[bool] = True) -> None:
         assert(send_vel_cmds == self.joystick_params.use_system_dynamics)
         if send_vel_cmds:
             # needs v, w
@@ -100,29 +103,29 @@ class JoystickBase():
                     print("%sERROR: joystick expecting (x, y, theta, v) for positional commands. Got \"(%s)\"%s" % (
                         color_red, iter_print(command_grp), color_reset))
                 assert(len(command_grp) == 4)
-        json_dict = {}
+        json_dict: Dict[str, str] = {}
         json_dict["j_input"] = cmds
         serialized_cmds = json.dumps(json_dict, indent=1)
         self.send_to_robot(serialized_cmds)
 
-    def joystick_sense(self):
+    def joystick_sense(self) -> None:
         raise NotImplementedError
 
-    def joystick_plan(self):
+    def joystick_plan(self) -> None:
         raise NotImplementedError
 
-    def joystick_act(self):
+    def joystick_act(self) -> None:
         raise NotImplementedError
 
-    def update_loop(self):
+    def update_loop(self) -> None:
         raise NotImplementedError
 
-    def pre_update(self):
+    def pre_update(self) -> None:
         assert(self.sim_dt is not None)
         self.robot_receiver_socket.listen(1)  # init robot listener socket
         self.joystick_on = True
 
-    def finish_episode(self):
+    def finish_episode(self) -> None:
         # finished this episode
         print("%sFinished episode:" % color_green,
               self.current_ep.get_name(), "%s" % color_reset)
@@ -135,15 +138,15 @@ class JoystickBase():
 
     """ BEGIN LISTEN UTILS """
 
-    def get_all_episode_names(self):
+    def get_all_episode_names(self) -> bool:
         # sets the data to look for all the episode names
         return self.listen_once(0)
 
-    def get_episode_metadata(self):
+    def get_episode_metadata(self) -> bool:
         # sets data_type to look for the episode metadata
         return self.listen_once(1)
 
-    def listen_once(self, data_type: int = 2):
+    def listen_once(self, data_type: Optional[int] = 2) -> bool:
         """Runs a single instance of listening to the receiver socket
         to obtain information about the world and episode metadata
         Args:
@@ -174,18 +177,18 @@ class JoystickBase():
         self.joystick_on = False
         return False
 
-    def manage_episodes_name_data(self, episode_names_json: dict):
+    def manage_episodes_name_data(self, episode_names_json: Dict[str, List[str]]) -> bool:
         # case where there is no simulator yet, just episodes
         assert('episodes' in episode_names_json)
-        self.episode_names = episode_names_json['episodes']
+        self.episode_names: List[str] = episode_names_json['episodes']
         print("Received episodes:", self.episode_names)
         assert(len(self.episode_names) > 0)
         return True  # valid parsing of the data
 
-    def manage_episode_data(self, initial_sim_state_json: dict):
+    def manage_episode_data(self, initial_sim_state_json: Dict[str, Any]) -> bool:
         current_world = SimState.from_json(initial_sim_state_json)
         # not empty dictionary
-        assert(not (not current_world.get_environment()))
+        assert not (not current_world.get_environment())
         self.update_knowledge_from_episode(current_world, init_ep=True)
         # send the algorithm name to the robot/simulator
         self.send_to_robot("algo: " + self.algorithm_name)
@@ -193,7 +196,7 @@ class JoystickBase():
         self.send_to_robot("ready")
         return True
 
-    def manage_sim_state_data(self, sim_state_json: dict):
+    def manage_sim_state_data(self, sim_state_json: Dict[str, str]) -> bool:
         # case where the robot sends a power-off signal
         if not sim_state_json['robot_on']:
             term_status = sim_state_json['termination_cause']
@@ -229,12 +232,12 @@ class JoystickBase():
                 self.write_pandas()
         return True
 
-    def update_knowledge_from_episode(self, current_world, init_ep: bool = False):
-        name = current_world.get_episode_name()
-        env = current_world.get_environment()
+    def update_knowledge_from_episode(self, current_world: SimState, init_ep: Optional[bool] = False) -> None:
+        name: str = current_world.get_episode_name()
+        env: Dict[float or int or np.ndarray] = current_world.get_environment()
         # get all the agents in the scene except for the robot
-        agents = current_world.get_pedestrians()
-        max_t = current_world.get_episode_max_time()
+        agents: Dict[str, Agent] = current_world.get_pedestrians()
+        max_t: float = current_world.get_episode_max_time()
         # gather robot information
         robots = list(current_world.get_robots().values())
         # only one robot is supported
@@ -259,7 +262,7 @@ class JoystickBase():
 
     """ END LISTEN UTILS """
 
-    def track_vel_accel(self, current_world):
+    def track_vel_accel(self, current_world: SimState) -> None:
         assert(self.joystick_params.track_vel_accel)
         # TODO: ensure the sim_states are sorted by their time, so that traversing
         # the hash map maintains relative order of when they entered
@@ -270,12 +273,12 @@ class JoystickBase():
 
     """ BEGIN PANDAS UTILS """
 
-    def update_logs(self, world_state: SimState):
+    def update_logs(self, world_state: SimState) -> None:
         self.update_log_of_type('robots', world_state)
         self.update_log_of_type('gen_agents', world_state)
         self.update_log_of_type('prerecs', world_state)
 
-    def update_log_of_type(self, agent_type: str, world_state: SimState):
+    def update_log_of_type(self, agent_type: str, world_state: SimState) -> None:
         from simulators.sim_state import get_agents_from_type
         agents_of_type = get_agents_from_type(world_state, agent_type)
         for a in agents_of_type.keys():
@@ -285,7 +288,7 @@ class JoystickBase():
             self.agent_log[a][world_state.get_sim_t()] = \
                 agents_of_type[a].get_current_config().to_3D_numpy()
 
-    def write_pandas(self):
+    def write_pandas(self) -> None:
         assert self.joystick_params.write_pandas_log
         pd_df = pd.DataFrame(self.agent_log)
         abs_path = \
@@ -301,7 +304,7 @@ class JoystickBase():
 
     """ BEGIN SOCKET UTILS """
 
-    def close_recv_socket(self):
+    def close_recv_socket(self) -> None:
         if self.joystick_on:
             # connect to the socket, closing it, and continuing the thread to completion
             try:
@@ -311,7 +314,7 @@ class JoystickBase():
                 print("%sClosing listener socket%s" % (color_red, color_reset))
             self.robot_receiver_socket.close()
 
-    def send_to_robot(self, message: str):
+    def send_to_robot(self, message: str) -> None:
         # Create a TCP/IP socket
         self.robot_sender_socket = \
             socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -327,28 +330,34 @@ class JoystickBase():
         if self.joystick_params.print_data:
             print("sent", message)
 
-    def init_send_conn(self):
+    def init_send_conn(self) -> None:
         """Creates the initial handshake between the joystick and the robot to
         have a communication channel with the external robot process """
         self.robot_sender_socket = \
             socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             self.robot_sender_socket.connect(self.send_ID)
-        except:
-            print("%sUnable to connect to robot%s" % (color_red, color_reset))
+        except Exception as e:
+            print("%sUnable to connect to robot%s. Reason: %s" %
+                  (color_red, color_reset, e))
             print("Make sure you have a simulation instance running")
             exit(1)
         print("%sRobot <-- Joystick (sender) connection established%s" %
               (color_green, color_reset))
         assert(self.robot_sender_socket)
 
-    def init_recv_conn(self):
+    def init_recv_conn(self) -> None:
         """Creates the initial handshake between the joystick and the meta test
         controller that sends information about the episodes as well as the 
         RobotAgent that sends it's SimStates serialized through json as a 'sense'"""
         self.robot_receiver_socket = \
             socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.robot_receiver_socket.bind(self.recv_ID)
+        try:
+            self.robot_receiver_socket.bind(self.recv_ID)
+        except OSError:
+            if os.path.exists(self.recv_ID):
+                os.remove(self.recv_ID)
+                self.robot_receiver_socket.bind(self.recv_ID)  # try again
         # wait for a connection
         self.robot_receiver_socket.listen(1)
         connection, client = self.robot_receiver_socket.accept()

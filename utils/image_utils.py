@@ -1,12 +1,18 @@
 import os
+from socnav.socnav_renderer import SocNavRenderer
 import numpy as np
 from utils.utils import touch, natural_sort
 from utils.utils import color_red, color_green, color_reset
 import glob
 import imageio
+from typing import Tuple, Dict, Optional
+from matplotlib import pyplot
+from agents.agent import Agent
+from agents.robot_agent import RobotAgent
+from dotmap import DotMap
 
 
-def plot_image_observation(ax, img_mkd, size=None):
+def plot_image_observation(ax: pyplot.axes, img_mkd: np.ndarray, size: Optional[float] = None) -> None:
     """
     Plot an image observation (occupancy_grid, rgb, or depth).
     The image to be plotted is img_mkd an mxk image with d channels.
@@ -22,7 +28,7 @@ def plot_image_observation(ax, img_mkd, size=None):
 
 
 def gather_metadata(ppm: float, a, plot_start_goal: bool, start: list,
-                    goal: list, traj_col: str = ''):
+                    goal: list, traj_col: Optional[str] = '') -> Tuple[bool, float, np.ndarray, str, np.ndarray, np.ndarray]:
     # collision means either the agent collided with an obstacle (get_collided) or
     # the agent has recently been collided with and is on a "collision cooldown"
     collided = a.get_collided() or (a.get_collision_cooldown() > 0)
@@ -47,7 +53,7 @@ def gather_metadata(ppm: float, a, plot_start_goal: bool, start: list,
     return collided, markersize, pos_3, traj_col, start_3, goal_3
 
 
-def gather_colors_and_labels(label: str, indx: int):
+def gather_colors_and_labels(label: str, indx: int) -> Tuple[str, str, str, str, str]:
     start_col = 'yo'  # yellow circle
     goal_col = 'g'   # yellow (star)
     draw_label = None
@@ -61,9 +67,9 @@ def gather_colors_and_labels(label: str, indx: int):
     return start_col, goal_col, draw_label, sl, gl
 
 
-def plot_agent_dict(ax, ppm: float, agents_dict: dict, label='Agent', normal_color='bo',
-                    collided_color='ro', plot_trajectory=True, plot_quiver=False, alpha=1,
-                    traj_color='', plot_start_goal=False, start_3=None, goal_3=None, traj_clip=0):
+def plot_agent_dict(ax, ppm: float, agents_dict: Dict[str, Agent], label: Optional[str] = 'Agent', normal_color: Optional[str] = 'bo',
+                    collided_color: Optional[str] = 'ro', plot_trajectory: Optional[bool] = True, plot_quiver: Optional[bool] = False, alpha: Optional[float] = 1,
+                    traj_color: Optional[str] = '', plot_start_goal: Optional[bool] = False, start_3: Optional[np.ndarray] = None, goal_3: Optional[np.ndarray] = None, traj_clip: Optional[int] = 0) -> None:
     # plot all the simulated prerecorded gen_agents
     for i, a in enumerate(agents_dict.values()):
         # gather important info regarding the values to plot
@@ -112,8 +118,8 @@ def plot_agent_dict(ax, ppm: float, agents_dict: dict, label='Agent', normal_col
                           scale=1, scale_units='xy')
 
 
-def plot_topview(ax, extent, traversible, human_traversible, camera_pos_13,
-                 pedestrians, robots, room_center, plot_quiver=False, plot_meter_tick=False):
+def plot_topview(ax: pyplot.axes, extent: Tuple[float, float, float, float], traversible: np.ndarray, human_traversible: np.ndarray, camera_pos_13: np.ndarray,
+                 pedestrians: Dict[str, Agent], robots: Dict[str, RobotAgent], room_center: np.ndarray, plot_quiver: Optional[bool] = False, plot_meter_tick: Optional[bool] = False) -> None:
     """Uses matplotlib to plot a birds-eye-view image of the world by plotting the environment
     and the gen_agents on every frame. The frame also includes the simulator time and wall clock time
 
@@ -180,9 +186,9 @@ def plot_topview(ax, extent, traversible, human_traversible, camera_pos_13,
                     0.5, "1m", fontsize=14, verticalalignment='top')
 
 
-def render_scene(plt, p, rgb_image_1mk3, depth_image_1mk1, environment,
-                 camera_pos_13, pedestrians, robots,
-                 sim_t: float, wall_t: float, filename: str, with_zoom=False):
+def render_scene(plt: pyplot.plot, p: DotMap, rgb_image_1mk3: np.ndarray, depth_image_1mk1: np.ndarray, environment: Dict[str, float or int or np.ndarray],
+                 camera_pos_13: np.ndarray, pedestrians: Dict[str, Agent], robots: Dict[str, RobotAgent],
+                 sim_t: float, wall_t: float, filename: str, with_zoom: Optional[bool] = False) -> None:
     """Plots a single frame from information provided about the world state
 
     Args:
@@ -212,7 +218,7 @@ def render_scene(plt, p, rgb_image_1mk3, depth_image_1mk1, environment,
 
     # count used to signify the number of images that will be generated in a single frame
     # default 1, for normal view (can add a second for zoomed view)
-    plot_count = 1
+    plot_count: int = 1
     if with_zoom:
         plot_count += 1
         zoomed_img_plt_indx = plot_count  # 2
@@ -223,7 +229,7 @@ def render_scene(plt, p, rgb_image_1mk3, depth_image_1mk1, environment,
         plot_count = plot_count + 1
         depth_img_plt_indx = plot_count  # 4
 
-    img_size = 10 * p.img_scale
+    img_size: float = 10 * p.img_scale
     fig = plt.figure(figsize=(plot_count * img_size, img_size))
     ax = fig.add_subplot(1, plot_count, 1)
     ax.set_aspect('equal')
@@ -281,7 +287,7 @@ def render_scene(plt, p, rgb_image_1mk3, depth_image_1mk1, environment,
               full_file_name, '\033[0m')
 
 
-def render_rgb_and_depth(r, camera_pos_13, dx_m: float, human_visible=True):
+def render_rgb_and_depth(r: SocNavRenderer, camera_pos_13: np.ndarray, dx_m: float, human_visible: Optional[bool] = True) -> Tuple[np.ndarray, np.ndarray]:
     """render the rgb and depth images from the openGL renderer
 
     Args:
@@ -312,7 +318,7 @@ def render_rgb_and_depth(r, camera_pos_13, dx_m: float, human_visible=True):
     return rgb_image_1mk3, depth_image_1mk1
 
 
-def save_to_gif(IMAGES_DIR, duration=0.05, gif_filename="movie", clear_old_files=True, verbose=False):
+def save_to_gif(IMAGES_DIR: str, duration: Optional[float] = 0.05, gif_filename: Optional[str] = "movie", clear_old_files: Optional[bool] = True, verbose: Optional[bool] = False) -> None:
     """Takes the image directory and naturally sorts the images into a singular movie.gif"""
     images = []
     if not os.path.exists(IMAGES_DIR):

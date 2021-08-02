@@ -9,7 +9,7 @@ from objectives.objective_function import ObjectiveFunction
 from trajectory.trajectory import Trajectory
 from utils.fmm_map import FmmMap
 from utils.utils import *
-
+from utils.socnav_utils import load_building, construct_environment
 from params.central_params import create_socnav_params, create_test_map_params
 from simulators.simulator import Simulator
 

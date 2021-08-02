@@ -1,3 +1,9 @@
+from planners.planner import Planner
+from systems.dynamics import Dynamics
+from utils.fmm_map import FmmMap
+from obstacles.sbpd_map import SBPDMap
+from objectives.objective_function import ObjectiveFunction
+from dotmap import DotMap
 import numpy as np
 import copy
 from utils.utils import generate_name, euclidean_dist2
@@ -5,102 +11,104 @@ from utils.angle_utils import angle_normalize
 from objectives.goal_distance import GoalDistance
 from trajectory.trajectory import SystemConfig, Trajectory
 
+from typing import Any, Dict, List, Tuple, Optional
+
 
 class AgentBase(object):
-    color_indx = 0
-    possible_colors = ['b', 'g', 'r', 'c', 'm', 'y']
+    color_indx: int = 0
+    possible_colors: List[str] = ['b', 'g', 'r', 'c', 'm', 'y']
 
-    def __init__(self, start, goal, name=None):
-        self.name = name if name else generate_name(20)
-        self.start_config = start
-        self.goal_config = goal
+    def __init__(self, start: SystemConfig, goal: SystemConfig, name: Optional[str] = None):
+        self.name: str = name if name else generate_name(20)
+        self.start_config: SystemConfig = start
+        self.goal_config: SystemConfig = goal
         # upon initialization, the current config of the agent is start
-        self.current_config = copy.deepcopy(start)
+        self.current_config: SystemConfig = copy.deepcopy(start)
         # path planning and acting fields
-        self.end_acting = False
+        self.end_acting: bool = False
         # default termination cause is timeout
-        self.termination_cause = "Timeout"
+        self.termination_cause: str = "Timeout"
         # name of the agent that the agent collided with (if applicable)
-        self.latest_collider = ""
+        self.latest_collider: str = ""
         # cooldown (in terms of simulation updates) before colliding with another agent
-        self.collision_cooldown = 0
+        self.collision_cooldown: int = 0
         # Whether to continue the episode even if the robot collides with a pedestrian
-        self.keep_episode_running = True
+        self.keep_episode_running: bool = True
         # cosmetic items (for drawing the trajectories)
-        self.trajectory_color = AgentBase.init_colors()
+        self.trajectory_color: str = AgentBase.init_colors()
         # initialize some trajectory to be updated via actions
-        self.trajectory = None
+        self.trajectory: Trajectory = None
         # default planner fields
         self.init_planner_fields()
         # no params yet
-        self.params = None
+        self.params: DotMap = None
 
     def init_planner_fields(self):
-        self.obj_fn = None
-        self.obstacle_map = None
-        self.fmm_map = None
-        self.system_dynamics = None
-        self.planner = None
-        self.planner_data = None
-        self.vehicle_data = None
+        self.obj_fn: ObjectiveFunction = None
+        self.obstacle_map: SBPDMap = None
+        self.fmm_map: FmmMap = None
+        self.system_dynamics: Dynamics = None
+        self.planner: Planner = None
+        self.planner_data: Dict[str, Any] = None
+        self.vehicle_data: Dict = None
 
     # Getters for the Agent class
-    def get_name(self):
+    def get_name(self) -> str:
         return self.name
 
-    def get_config(self, config, deepcpy):
+    def get_config(self, config: SystemConfig, deepcpy: bool) -> SystemConfig:
         if(deepcpy):
             return SystemConfig.copy(config)
         return config
 
-    def get_start_config(self, deepcpy=False):
+    def get_start_config(self, deepcpy: Optional[bool] = False) -> SystemConfig:
         return self.get_config(self.start_config, deepcpy)
 
-    def set_start_config(self, start):
+    def set_start_config(self, start: SystemConfig) -> None:
         self.start_config = start
 
-    def get_goal_config(self, deepcpy=False):
+    def get_goal_config(self, deepcpy: Optional[bool] = False) -> SystemConfig:
         return self.get_config(self.goal_config, deepcpy)
 
-    def set_goal_config(self, goal):
+    def set_goal_config(self, goal: SystemConfig) -> None:
         self.goal_config = goal
 
-    def get_current_config(self, deepcpy=False):
+    def get_current_config(self, deepcpy: Optional[bool] = False) -> SystemConfig:
         return self.get_config(self.current_config, deepcpy)
 
-    def set_current_config(self, current):
+    def set_current_config(self, current: SystemConfig) -> None:
         self.current_config = current
 
-    def get_trajectory(self, deepcpy=False):
+    def get_trajectory(self, deepcpy: Optional[bool] = False) -> Trajectory:
         if(deepcpy):
             return Trajectory.copy(self.trajectory, check_dimens=False)
         return self.trajectory
 
-    def get_end_acting(self):
+    def get_end_acting(self) -> bool:
         return self.end_acting
 
-    def get_collided(self):
+    def get_collided(self) -> bool:
         return "Collision" in self.termination_cause
 
-    def get_completed(self):
+    def get_completed(self) -> bool:
         return self.get_end_acting() and self.termination_cause == "Success"
 
-    def get_collision_cooldown(self):
+    def get_collision_cooldown(self) -> int:
         return self.collision_cooldown
 
-    def get_radius(self):
+    def get_radius(self) -> float:
         return self.params.radius
 
-    def get_color(self):
+    def get_color(self) -> str:
         return self.trajectory_color
 
     @staticmethod
-    def generate():
+    def generate() -> None:
         # used to spawn all the agents into the simulator, defined per class
         pass
 
     @staticmethod
-    def init_colors():
+    def init_colors() -> str:
         # cosmetic items (for drawing the trajectories)
         if AgentBase.color_indx < len(AgentBase.possible_colors) - 1:
             AgentBase.color_indx = AgentBase.color_indx + 1
@@ -108,18 +116,18 @@ class AgentBase(object):
             AgentBase.color_indx = 0
         return AgentBase.possible_colors[AgentBase.color_indx]
 
-    def sense(self):
+    def sense(self) -> None:
         raise NotImplementedError
 
-    def plan(self):
+    def plan(self) -> None:
         raise NotImplementedError
 
-    def act(self):
+    def act(self) -> None:
         raise NotImplementedError
 
     """AGENT UTILS"""
 
-    def _collision_in_group(self, own_pos: np.array, group: list):
+    def _collision_in_group(self, own_pos: np.ndarray, group: List) -> bool:
         for a in group:
             othr_pos = a.get_current_config().to_3D_numpy()
             is_same_agent: bool = a.get_name() is self.get_name()
@@ -138,7 +146,8 @@ class AgentBase(object):
         self.termination_cause = "Timeout"  # no more collisions with these group members
         return False
 
-    def check_collisions(self, world_state, include_agents=True, include_robots=True):
+    def check_collisions(self, world_state, include_agents: Optional[bool] = True, include_robots: Optional[bool] = True) -> bool:
+        # TODO: world_state is a SimState, but including it yields a circular dependency error
         if self.collision_cooldown > 0:
             # no double collisions
             return False
@@ -150,11 +159,11 @@ class AgentBase(object):
                 return True
         return False
 
-    def enforce_termination_conditions(self):
+    def enforce_termination_conditions(self) -> bool:
         assert(self.obj_fn is not None)        # to calculate objective values
         assert(self.obstacle_map is not None)  # to check obstacle collisions
         p = self.params
-        time_idxs = []
+        time_idxs: List[np.ndarray] = []
         for condition in p.episode_termination_reasons:
             time_idxs.append(
                 self._compute_time_idx_for_termination_condition(condition))
@@ -202,12 +211,13 @@ class AgentBase(object):
         self.episode_data = episode_data
         return end_episode
 
-    def _compute_time_idx_for_termination_condition(self, condition):
+    def _compute_time_idx_for_termination_condition(self, condition: str) -> np.ndarray:
         """
         For a given trajectory termination condition (i.e. timeout, collision, etc.)
         computes the earliest time index at which this condition is met. Returns
         infinity if a condition is not met.
         """
+        # TODO: clean this up
         if condition == 'Timeout':
             time_idx = self._compute_time_idx_for_timeout()
         elif condition == 'Obstacle Collision':
@@ -222,7 +232,7 @@ class AgentBase(object):
 
         return time_idx
 
-    def _compute_time_idx_for_timeout(self):
+    def _compute_time_idx_for_timeout(self) -> np.ndarray:
         """
         If vehicle_trajectory has exceeded episode_horizon,
         return episode_horizon, else return infinity.
@@ -236,12 +246,12 @@ class AgentBase(object):
             time_idx = np.array(np.inf)
         return time_idx
 
-    def _compute_time_idx_for_collision(self, use_current_config=None):
+    def _compute_time_idx_for_collision(self, use_current_config: Optional[bool] = None) -> np.ndarray:
         """
         Compute and return the earliest time index of collision in vehicle
         trajectory. If there is no collision return infinity.
         """
-        if(use_current_config is None):
+        if use_current_config is None:
             pos_1k2 = self.trajectory.position_nk2()
         else:
             pos_1k2 = self.get_current_config().position_nk2()
@@ -255,7 +265,7 @@ class AgentBase(object):
             time_idx = np.array(np.inf)
         return time_idx
 
-    def _dist_to_goal(self):
+    def _dist_to_goal(self) -> np.ndarray:
         """Calculate the FMM distance between
         each state in trajectory and the goal."""
         for objective in self.obj_fn.objectives:
@@ -264,7 +274,7 @@ class AgentBase(object):
                     objective.compute_dist_to_goal_nk(self.trajectory)
         return dist_to_goal_nk
 
-    def _compute_time_idx_for_success(self):
+    def _compute_time_idx_for_success(self) -> np.ndarray:
         """
         Compute and return the earliest time index of success (reaching the goal region)
         in vehicle trajectory. If there is no collision return infinity.
@@ -280,15 +290,15 @@ class AgentBase(object):
         return time_idx
 
     @staticmethod
-    def apply_control_open_loop(self, start_config, control_nk2,
-                                T, sim_mode='ideal'):
+    def apply_control_open_loop(self, start_config: SystemConfig, control_nk2: np.ndarray,
+                                T: int, sim_mode: Optional[str] = 'ideal') -> Tuple[Trajectory, np.ndarray]:
         """
         Apply control commands in control_nk2 in an open loop
         fashion to the system starting from start_config.
         """
         x0_n1d, _ = self.system_dynamics.parse_trajectory(start_config)
-        applied_actions = []
-        states = [x0_n1d * 1.]
+        applied_actions: List[np.ndarray] = []
+        states: List[float] = [x0_n1d * 1.]
         x_next_n1d = x0_n1d * 1.
         for t in range(T):
             u_n1f = control_nk2[:, t:t + 1]
@@ -320,9 +330,9 @@ class AgentBase(object):
         return trajectory, commanded_actions_nkf
 
     @staticmethod
-    def apply_control_closed_loop(self, start_config, trajectory_ref,
-                                  k_array_nTf1, K_array_nTfd, T,
-                                  sim_mode='ideal'):
+    def apply_control_closed_loop(self, start_config: SystemConfig, trajectory_ref: Trajectory,
+                                  k_array_nTf1: np.ndarray, K_array_nTfd: np.ndarray, T: int,
+                                  sim_mode: Optional[str] = 'ideal') -> Tuple[Trajectory, np.ndarray]:
         """
         Apply LQR feedback control to the system to track trajectory_ref
         Here k_array_nTf1 and K_array_nTfd are tensors of dimension

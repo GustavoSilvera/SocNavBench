@@ -1,5 +1,6 @@
 from random import randint
 import numpy as np
+from typing import List, Tuple
 
 
 class HumanAppearance():
@@ -7,32 +8,32 @@ class HumanAppearance():
     # This dataset holds all the SURREAL human textures and meshes
     dataset = None
 
-    def __init__(self, gender, texture, shape, mesh_rng):
-        self.gender = gender
-        self.shape = shape
-        self.texture = texture
-        self.mesh_rng = mesh_rng
+    def __init__(self, gender: str, texture: List[str], shape: int, mesh_rng: int):
+        self.gender: str = gender
+        self.shape: int = shape
+        self.texture: List[str] = texture
+        self.mesh_rng: int = mesh_rng
 
     # Getters for the HumanAppearance class
-    def get_shape(self):
+    def get_shape(self) -> int:
         return self.shape
 
-    def get_gender(self):
+    def get_gender(self) -> str:
         return self.gender
 
-    def get_texture(self):
+    def get_texture(self) -> List[str]:
         return self.texture
 
-    def get_mesh_rng(self):
+    def get_mesh_rng(self) -> int:
         return self.mesh_rng
 
-    def generate_human_appearance(self, gender, texture, shape, mesh_rng):
+    def generate_human_appearance(self, gender: str, texture: List[str], shape: int, mesh_rng: int):
         """
         Sample a new random human from all required features
         """
         return HumanAppearance(gender, texture, shape, mesh_rng)
 
-    def create_random_human_identity_from_dataset(self):
+    def create_random_human_identity_from_dataset(self) -> Tuple[str, List[str], int]:
         """
         Sample a new human identity, but don't load it into
         memory
@@ -42,7 +43,7 @@ class HumanAppearance():
         identity_rng = np.random.RandomState(randint(1, 1000))
         # Collecting Humanav dataset
         dataset = HumanAppearance.dataset
-        if(dataset is None):
+        if dataset is None:
             print('\033[31m', "ERROR: can't find Surreal Dataset", '\033[0m')
             exit(1)  # Failure condition
         # Using the SBPD dataset to generate a random gender, texture, and body shape
