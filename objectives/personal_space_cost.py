@@ -2,12 +2,12 @@ from typing import Dict, List
 
 import numpy as np
 from agents.agent import Agent
+from dotmap import DotMap
 from metrics.cost_functions import *
 from simulators.sim_state import SimState
 from trajectory.trajectory import Trajectory
 
 from objectives.objective_function import Objective
-from dotmap import DotMap
 
 
 class PersonalSpaceCost(Objective):

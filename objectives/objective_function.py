@@ -1,9 +1,8 @@
 from typing import List, Optional
 
 import numpy as np
-from trajectory.trajectory import Trajectory
-
 from dotmap import DotMap
+from trajectory.trajectory import Trajectory
 
 
 class SimState:
