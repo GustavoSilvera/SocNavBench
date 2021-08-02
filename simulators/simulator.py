@@ -18,7 +18,7 @@ from utils.utils import (
     touch,
 )
 
-from simulators.sim_state import AgentState, HumanState, SimState
+from simulators.sim_state import AgentState, SimState
 from simulators.simulator_helper import SimulatorHelper
 
 
@@ -184,17 +184,17 @@ class Simulator(SimulatorHelper):
         """
         # NOTE: when using a modular environment, make saved_env a deepcopy
         saved_env = self.environment
-        pedestrians: Dict[str, HumanState] = {}
+        pedestrians: Dict[str, AgentState] = {}
         for a in self.agents.values():
-            pedestrians[a.get_name()] = HumanState(a)
+            pedestrians[a.get_name()] = AgentState.from_agent(a)
         # deepcopy all prerecorded gen_agents
         for a in self.prerecs.values():
-            pedestrians[a.get_name()] = HumanState(a)
+            pedestrians[a.get_name()] = AgentState.from_agent(a)
         # Save all the robots
         saved_robots: Dict[str, RobotAgent] = {}
         last_robot_collision: str = ""
         if self.robot:
-            saved_robots[self.robot.get_name()] = AgentState(self.robot)
+            saved_robots[self.robot.get_name()] = AgentState.from_agent(self.robot)
             last_robot_collision = self.robot.latest_collider
         current_state = SimState(
             saved_env,

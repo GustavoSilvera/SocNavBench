@@ -6,11 +6,7 @@ from agents.agent import Agent
 from agents.humans.human import Human, HumanAppearance
 from agents.robot_agent import RobotAgent
 from trajectory.trajectory import SystemConfig, Trajectory
-from utils.utils import (
-    color_text,
-    euclidean_dist2,
-    generate_config_from_pos_3,
-)
+from utils.utils import color_text, euclidean_dist2, generate_config_from_pos_3
 
 """ These are smaller "wrapper" classes that are visible by other
 gen_agents/humans and saved during state deepcopies
@@ -21,12 +17,12 @@ NOTE: they are all READ-ONLY (only getters)
 class AgentState:
     def __init__(
         self,
-        a: Agent = None,
-        name: str = None,
-        goal_config: SystemConfig = None,
-        start_config: SystemConfig = None,
-        current_config: SystemConfig = None,
-        trajectory: Trajectory = None,
+        name: str,
+        goal_config: SystemConfig,
+        start_config: SystemConfig,
+        current_config: SystemConfig,
+        trajectory: Optional[Trajectory] = None,
+        appearance: Optional[HumanAppearance] = None,
         collided: bool = False,
         end_acting: bool = False,
         collision_cooldown: int = -1,
@@ -34,31 +30,36 @@ class AgentState:
         color: str = None,
     ):
         """Initialize an AgentState with either an Agent instance (a) or all the individual fields"""
-        if a is not None:
-            self.name: str = a.get_name()
-            self.goal_config: SystemConfig = a.get_goal_config()
-            # TODO: get start/current configs from self.trajectory
-            self.start_config: SystemConfig = a.get_start_config()
-            self.current_config: SystemConfig = a.get_current_config()
-            # deepcopying the trajectory to not have memory aliasing
-            # for multiple sim-states spanning a wide timerange
-            self.trajectory: Trajectory = a.get_trajectory(deepcpy=True)
-            self.collided: bool = a.get_collided()
-            self.end_acting: bool = a.get_end_acting()
-            self.collision_cooldown: int = a.get_collision_cooldown()
-            self.radius: float = a.get_radius()
-            self.color: str = a.get_color()
-        else:
-            self.name: str = name
-            self.goal_config: SystemConfig = goal_config
-            self.start_config: SystemConfig = start_config
-            self.current_config: SystemConfig = current_config
-            self.trajectory: Trajectory = trajectory
-            self.collided: bool = collided
-            self.end_acting: bool = end_acting
-            self.collision_cooldown: int = collision_cooldown
-            self.radius: float = radius
-            self.color: str = color
+        self.name: str = name
+        self.goal_config: SystemConfig = goal_config
+        self.start_config: SystemConfig = start_config
+        self.current_config: SystemConfig = current_config
+        self.trajectory: Trajectory = trajectory
+        self.appearance: HumanAppearance = appearance
+        self.collided: bool = collided
+        self.end_acting: bool = end_acting
+        self.collision_cooldown: int = collision_cooldown
+        self.radius: float = radius
+        self.color: str = color
+
+    @classmethod
+    def from_agent(cls, a: Agent):
+        appearance = None
+        if isinstance(a, Human):  # only Humans have appearances
+            appearance = a.get_appearance()
+        return cls(
+            name=a.get_name(),
+            goal_config=a.get_goal_config(),
+            start_config=a.get_start_config(),
+            current_config=a.get_current_config(),
+            trajectory=a.get_trajectory(deepcpy=True),
+            appearance=appearance,
+            collided=a.get_collided(),
+            end_acting=a.get_end_acting(),
+            collision_cooldown=a.get_collision_cooldown(),
+            radius=a.get_radius(),
+            color=a.get_color(),
+        )
 
     def get_name(self) -> str:
         return self.name
@@ -72,8 +73,11 @@ class AgentState:
     def get_goal_config(self) -> SystemConfig:
         return self.goal_config
 
-    def get_trajectory(self) -> Trajectory:
+    def get_trajectory(self) -> Optional[Trajectory]:
         return self.trajectory
+
+    def get_appearance(self) -> HumanAppearance:
+        return self.appearance
 
     def get_collided(self) -> bool:
         return self.collided
@@ -111,8 +115,8 @@ class AgentState:
         # returns array (python list) to be json'd in_simstate
         return json_dict
 
-    @staticmethod
-    def from_json(json_str: Dict[str, str]):
+    @classmethod
+    def from_json(cls, json_str: Dict[str, str]):
         name: str = json_str["name"]
         if "start_config" in json_str:
             start_config = generate_config_from_pos_3(json_str["start_config"])
@@ -123,35 +127,19 @@ class AgentState:
         else:
             goal_config = None
         current_config = generate_config_from_pos_3(json_str["current_config"])
-        trajectory = None  # unable to recreate trajectory
         radius = json_str["radius"]
-        collision_cooldown = -1
-        collided = False
-        end_acting = False
-        color = None
-        return AgentState(
-            None,
-            name,
-            goal_config,
-            start_config,
-            current_config,
-            trajectory,
-            collided,
-            end_acting,
-            collision_cooldown,
-            radius,
-            color,
+        return cls(
+            name=name,
+            goal_config=goal_config,
+            start_config=start_config,
+            current_config=current_config,
+            trajectory=None,
+            collided=False,
+            end_acting=False,
+            collision_cooldown=-1,
+            radius=radius,
+            color=None,
         )
-
-
-class HumanState(AgentState):
-    def __init__(self, human: Human):
-        self.appearance: HumanAppearance = human.get_appearance()
-        # Initialize the agent state class
-        super().__init__(a=human)
-
-    def get_appearance(self) -> HumanAppearance:
-        return self.appearance
 
 
 class SimState:

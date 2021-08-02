@@ -191,7 +191,7 @@ def plot_topview(
         human_traversible (np.array/None): the human traversibles (or None for non-3D-plots)
         camera_pos_13 (np.array): the position of the camera (and robot)
         agents (AgentState dict): the agent states
-        prerecs (HumanState dict): the prerecorded agent states
+        prerecs (AgentState dict): the prerecorded agent states
         robots (AgentState dict): the robots states
         room_center (np.array): the center of the "room" to focus the image plot off of
         plot_quiver (bool, optional): whether or not to plot the quiver (arrow). Defaults to False.
@@ -298,7 +298,7 @@ def render_scene(
         environment (dict): dictionary housing the obj map (bitmap) and more
         camera_pos_13 (np.array): the position of the camera (and robot)
         agents (AgentState dict): the agent states
-        prerecs (HumanState dict): the prerecorded agent states
+        prerecs (AgentState dict): the prerecorded agent states
         robots (AgentState dict): the robots states
         sim_t (float): the simulator time in seconds
         wall_t (float): the wall clock time in seconds

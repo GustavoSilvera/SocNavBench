@@ -1,5 +1,5 @@
-from os import environ
-from typing import Any, Dict, List, Tuple, Optional
+from random import randint
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from agents.agent import Agent
@@ -10,7 +10,6 @@ from utils.utils import (
     generate_name,
     generate_random_config,
 )
-from random import randint
 
 
 class HumanAppearance:
