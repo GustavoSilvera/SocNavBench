@@ -1,8 +1,13 @@
-# import numpy as np
+from typing import Dict, List
+
+import numpy as np
+from agents.agent import Agent
 from metrics.cost_functions import *
-from simulators.sim_state import SimState, get_all_agents
+from simulators.sim_state import SimState
+from trajectory.trajectory import Trajectory
 
 from objectives.objective_function import Objective
+from dotmap import DotMap
 
 
 class PersonalSpaceCost(Objective):
@@ -10,34 +15,31 @@ class PersonalSpaceCost(Objective):
     Compute the cost of being in non ego gen_agents' path.
     """
 
-    def __init__(self, params):
-        self.p = params
-        self.tag = "personal_space_cost_per_nonego_agent"
+    def __init__(self, params: DotMap):
+        self.p: DotMap = params
+        self.tag: str = "personal_space_cost_per_nonego_agent"
 
-    def evaluate_objective(self, trajectory, sim_state_hist: SimState):
+    def evaluate_objective(
+        self, trajectory: Trajectory, sim_state_hist: List[SimState]
+    ) -> np.ndarray:
         # get ego agent trajectory
         ego_traj = trajectory.position_and_heading_nk3()
 
         # get the last sim_state if it exists
-        if len(sim_state_hist) > 0:
-            sim_state = sim_state_hist[max(sim_state_hist.keys())]
-        else:
+        if len(sim_state_hist) == 0:
             return 0
-
+        sim_state: SimState = sim_state_hist[max(sim_state_hist.keys())]
+        assert isinstance(sim_state, SimState)
         # loop through each trajectory point
-        n, k, _ = ego_traj.shape
+        _, k, _ = ego_traj.shape
         personal_space_cost = np.zeros((1, k))
         for i in range(k):
             ego_pos3 = ego_traj[0, i]  # (x,y,th)_self latest timestep
 
             # iterate through every non ego agent
-            agents = (
-                sim_state.get_all_agents()
-                if isinstance(sim_state, SimState)
-                else get_all_agents(sim_state)
-            )
+            agents: Dict[str, Agent] = sim_state.get_all_agents()
 
-            for agent_name, agent_vals in agents.items():
+            for _, agent_vals in agents.items():
                 agent_pos3 = agent_vals.get_pos3()  # (x,y,th)
                 theta = agent_pos3[2]
                 # gaussian centered around the non ego agent

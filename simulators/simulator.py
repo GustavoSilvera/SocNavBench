@@ -1,10 +1,9 @@
 import os
 import threading
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
-import pandas as pd
 from agents.agent import Agent
 from agents.robot_agent import RobotAgent
 from dotmap import DotMap
@@ -51,6 +50,7 @@ class Simulator(SimulatorHelper):
             self.episode_params.name,
         )
         self.obstacle_map: SBPDMap = self.init_obstacle_map(renderer)
+        self.r: SocNavRenderer = renderer
 
     def init_sim_data(self, verbose: Optional[bool] = True) -> None:
         self.total_agents: int = len(self.agents) + len(self.backstage_prerecs)
