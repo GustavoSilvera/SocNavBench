@@ -214,7 +214,7 @@ def main_test() -> None:
     # get initial state
     sim_state = simulator.save_state(0)
     test_personal_cost_function(sim_state, plot=True)
-    print("%sGoal-psc tests passed!%s" % (color_green, color_reset))
+    print("%sGoal-psc tests passed!%s" % (color_text["green"], color_text["reset"]))
 
 
 if __name__ == "__main__":

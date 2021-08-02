@@ -5,14 +5,16 @@ import numpy as np
 from dotmap import DotMap
 from socnav.socnav_renderer import SocNavRenderer
 
-from utils.utils import color_red, color_reset, color_yellow
+from utils.utils import color_text
 
 
 def load_building(
     p: DotMap, force_rebuild: Optional[bool] = False
 ) -> Tuple[SocNavRenderer, float, np.ndarray]:
     if force_rebuild:
-        print("%sForce reloading building%s" % (color_yellow, color_reset))
+        print(
+            "%sForce reloading building%s" % (color_text["yellow"], color_text["reset"])
+        )
         # it *should* have been the case that the user did not load the meshes
         assert p.building_params.load_meshes == False
         p2 = copy.deepcopy(p)
@@ -29,7 +31,7 @@ def load_building(
         except FileNotFoundError:  # did not find traversible.pkl for this map
             print(
                 "%sUnable to find traversible, reloading building%s"
-                % (color_red, color_reset)
+                % (color_text["red"], color_text["reset"])
             )
             # it *should* have been the case that the user did not load the meshes
             assert p.building_params.load_meshes == False
@@ -48,8 +50,15 @@ def construct_environment(
     p.building_params.building_name = episode.map_name
     if verbose:
         print(
-            '%s\n\nStarting episode "%s" in building "%s"%s\n\n'
-            % (color_yellow, test, p.building_params.building_name, color_reset)
+            '\n\nStarting episode "%s%s%s" in building "%s%s%s"'
+            % (
+                color_text["yellow"],
+                test,
+                color_text["reset"],
+                color_text["yellow"],
+                p.building_params.building_name,
+                color_text["reset"],
+            )
         )
     r, dx_cm, traversible = load_building(p)
     # Convert the grid spacing to units of meters. Should be 5cm for the S3DIS data

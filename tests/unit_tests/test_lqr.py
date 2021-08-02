@@ -4,7 +4,7 @@ from costs.quad_cost_with_wrapping import QuadraticRegulatorRef
 from dotmap import DotMap
 from optCtrl.lqr import LQRSolver
 from systems.dubins_v1 import DubinsV1
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 
 
 def create_params() -> DotMap:
@@ -218,7 +218,7 @@ def main_test() -> None:
     test_lqr0(visualize=False)
     test_lqr1(visualize=False)  # robot should track a trajectory
     test_lqr2(visualize=False)  # LQR should track 2 trajectories in a batch
-    print("%sLqr tests passed!%s" % (color_green, color_reset))
+    print("%sLqr tests passed!%s" % (color_text["green"], color_text["reset"]))
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ from params.central_params import create_socnav_params, create_test_map_params
 from trajectory.trajectory import Trajectory
 from utils.fmm_map import FmmMap
 from utils.socnav_utils import load_building
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 
 
 def create_params() -> DotMap:
@@ -79,7 +79,10 @@ def test_goal_angle_distance() -> None:
 
 def main_test() -> None:
     test_goal_angle_distance()
-    print("%sGoal-angle objective tests passed!%s" % (color_green, color_reset))
+    print(
+        "%sGoal-angle objective tests passed!%s"
+        % (color_text["green"], color_text["reset"])
+    )
 
 
 if __name__ == "__main__":

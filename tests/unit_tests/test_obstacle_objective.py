@@ -4,7 +4,7 @@ from obstacles.sbpd_map import SBPDMap
 from objectives.obstacle_avoidance import ObstacleAvoidance
 from trajectory.trajectory import Trajectory
 from dotmap import DotMap
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 from utils.socnav_utils import load_building
 from params.central_params import create_socnav_params, create_test_map_params
 
@@ -112,7 +112,10 @@ def test_avoid_obstacle(visualize=False) -> None:
 
 def main_test() -> None:
     test_avoid_obstacle(False)
-    print("%sObstacle objective tests passed!%s" % (color_green, color_reset))
+    print(
+        "%sObstacle objective tests passed!%s"
+        % (color_text["green"], color_text["reset"])
+    )
 
 
 if __name__ == "__main__":

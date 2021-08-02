@@ -1,5 +1,5 @@
 import numpy as np
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 
 
 def test_fmm_map() -> None:
@@ -45,7 +45,7 @@ def test_fmm_map() -> None:
 def main_test() -> None:
     np.random.seed(seed=1)
     test_fmm_map()
-    print("%sFmm_map tests passed!%s" % (color_green, color_reset))
+    print("%sFmm_map tests passed!%s" % (color_text["green"], color_text["reset"]))
 
 
 if __name__ == "__main__":

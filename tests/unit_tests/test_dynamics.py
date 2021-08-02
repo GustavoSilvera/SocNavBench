@@ -4,7 +4,7 @@ from dotmap import DotMap
 from systems.dubins_v1 import DubinsV1
 from systems.dubins_v2 import DubinsV2
 from systems.dubins_v3 import DubinsV3
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 
 
 def create_system_dynamics_params() -> DotMap:
@@ -298,7 +298,7 @@ def main_test() -> None:
     test_custom_dubins_v1()
     test_dubins_v2(visualize=False)
     test_dubins_v3()
-    print("%sDynamics tests passed!%s" % (color_green, color_reset))
+    print("%sDynamics tests passed!%s" % (color_text["green"], color_text["reset"]))
 
 
 if __name__ == "__main__":

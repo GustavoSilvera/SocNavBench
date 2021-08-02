@@ -10,7 +10,7 @@ from obstacles.sbpd_map import SBPDMap
 from planners.sampling_planner import SamplingPlanner
 from systems.dubins_v2 import DubinsV2
 from trajectory.spline.spline_3rd_order import Spline3rdOrder
-from utils.utils import color_blue, color_orange, color_reset
+from utils.utils import color_text
 from waypoint_grids.projected_image_space_grid import ProjectedImageSpaceGrid
 
 # first thing to do is create a config parser
@@ -316,18 +316,23 @@ def create_simulator_params(verbose=True) -> DotMap:
     # much faster to only render the topview rather than use the 3D renderer
     if verbose:
         print(
-            "%sSimulator running in %s mode, dt=%.3fs%s"
-            % (color_orange, sim_p.get("synchronous_mode"), p.dt, color_reset)
+            "Simulator running in %s%s%s mode, dt=%.3fs"
+            % (
+                color_text["orange"],
+                sim_p.get("synchronous_mode"),
+                color_text["reset"],
+                p.dt,
+            )
         )
         if p.render_3D:
             print(
-                "%sRender mode: Full Render (TOPVIEW, RGB, and DEPTH)%s"
-                % (color_blue, color_reset)
+                "Render mode: %sFull Render (TOPVIEW, RGB, and DEPTH)%s"
+                % (color_text["blue"], color_text["reset"])
             )
         else:
             print(
-                "%sRender mode: Schematic view (TOPVIEW only)%s"
-                % (color_blue, color_reset)
+                "Render mode: %sSchematic view (TOPVIEW only)%s"
+                % (color_text["blue"], color_text["reset"])
             )
     p.verbose_printing = sim_p.getboolean("verbose_printing")
     p.clear_files = sim_p.getboolean("clear_files")

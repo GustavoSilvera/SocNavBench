@@ -1,13 +1,13 @@
-import numpy as np
 import json
+import os
 import socket
 import threading
-import os
-from utils.utils import euclidean_dist2, iter_print
-from utils.utils import color_red, color_reset, color_green
-from typing import List, Tuple, Optional
-from dotmap import DotMap
 import time
+from typing import List, Optional, Tuple
+
+import numpy as np
+from dotmap import DotMap
+from utils.utils import color_text, euclidean_dist2, iter_print
 
 lock = threading.Lock()  # for asynchronous data sending
 
@@ -20,7 +20,7 @@ def clip_vel(vel: float, bounds: Tuple[float, float]) -> float:
     clipped = min(max(bounds[0], vel), bounds[1])
     print(
         "%svelocity %s out of bounds, clipped to %s%s"
-        % (color_red, vel, clipped, color_reset)
+        % (color_text["red"], vel, clipped, color_text["reset"])
     )
     return clipped
 
@@ -48,12 +48,12 @@ def clip_posn(
     print(
         "%sposn [%s] is unreachable, clipped to [%s] (%.3fm/s > %.3fm/s)%s"
         % (
-            color_red,
+            color_text["red"],
             iter_print(new_pos3),
             iter_print(reachable_pos3),
             req_vel,
             v_bounds[1],
-            color_reset,
+            color_text["reset"],
         )
     )
     return reachable_pos3
@@ -80,7 +80,7 @@ def establish_joystick_receiver_connection(
     connection, client = sock.accept()
     print(
         "%sRobot <-- Joystick (receiver) connection established%s"
-        % (color_green, color_reset)
+        % (color_text["green"], color_text["reset"])
     )
     return sock, connection, client
 
@@ -93,14 +93,14 @@ def establish_joystick_sender_connection(sock_id: str) -> socket.socket:
     except Exception as e:
         print(
             "%sUnable to connect to joystick%s. Reason: %s"
-            % (color_red, color_reset, e)
+            % (color_text["red"], color_text["reset"], e)
         )
         print("Make sure you have a joystick instance running")
         exit(1)
     assert sock is not None
     print(
         "%sRobot --> Joystick (sender) connection established%s"
-        % (color_green, color_reset)
+        % (color_text["green"], color_text["reset"])
     )
     return sock
 

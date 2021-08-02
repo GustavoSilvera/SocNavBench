@@ -12,12 +12,14 @@ from dotmap import DotMap
 from matplotlib import figure, pyplot
 from trajectory.trajectory import SystemConfig
 
-color_orange = "\033[33m"
-color_green = "\033[32m"
-color_red = "\033[31m"
-color_blue = "\033[36m"
-color_yellow = "\033[35m"
-color_reset = "\033[00m"
+color_text: Dict[str, str] = {
+    "orange": "\033[33m",
+    "green": "\033[32m",
+    "red": "\033[31m",
+    "blue": "\033[36m",
+    "yellow": "\033[35m",
+    "reset": "\033[00m",
+}
 
 
 def ensure_odd(integer: int) -> bool:
@@ -220,15 +222,15 @@ def termination_cause_to_color(cause: str) -> Optional[str]:
 
 def color_print(color: str) -> str:
     colour_map: Dict[str, str] = {
-        "green": color_green,
-        "red": color_red,
-        "blue": color_blue,
-        "yellow": color_yellow,
-        "orange": color_orange,
+        "green": color_text[green],
+        "red": color_text[red],
+        "blue": color_text[blue],
+        "yellow": color_text[yellow],
+        "orange": color_text[orange],
     }
     if color in colour_map:
         return colour_map[color]
-    return color_reset  # default is no colour
+    return color_text[reset]  # default is no colour
 
 
 def iter_print(l: List or Dict) -> str:

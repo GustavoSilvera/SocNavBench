@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import interpolate
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 from utils.voxel_map_utils import VoxelMap
 
 
@@ -64,7 +64,10 @@ def test_voxel_interpolation() -> None:
 def main_test() -> None:
     np.random.seed(seed=1)
     test_voxel_interpolation()
-    print("%sVoxel interpolation tests passed!%s" % (color_green, color_reset))
+    print(
+        "%sVoxel interpolation tests passed!%s"
+        % (color_text["green"], color_text["reset"])
+    )
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from obstacles.sbpd_map import SBPDMap
 from params.central_params import create_socnav_params, create_test_map_params
 from trajectory.trajectory import Trajectory
 from utils.socnav_utils import load_building
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 
 
 def create_params() -> DotMap:
@@ -53,7 +53,7 @@ def test_sbpd_map(visualize=False) -> None:
 
 def main_test() -> None:
     test_sbpd_map(visualize=False)
-    print("%sObstacle map tests passed!%s" % (color_green, color_reset))
+    print("%sObstacle map tests passed!%s" % (color_text["green"], color_text["reset"]))
 
 
 if __name__ == "__main__":

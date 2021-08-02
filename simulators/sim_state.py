@@ -8,8 +8,7 @@ from agents.humans.human_appearance import HumanAppearance
 from agents.robot_agent import RobotAgent
 from trajectory.trajectory import SystemConfig, Trajectory
 from utils.utils import (
-    color_red,
-    color_reset,
+    color_text,
     euclidean_dist2,
     generate_config_from_pos_3,
 )
@@ -372,9 +371,9 @@ def compute_agent_state_velocity(
             return agent_velocities
         else:
             print(
-                "%sAgent" % color_red,
+                "%sAgent" % color_text["red"],
                 agent_name,
-                "is not in the SimStates%s" % color_reset,
+                "is not in the SimStates%s" % color_text["reset"],
             )
     else:
         return []
@@ -408,9 +407,9 @@ def compute_agent_state_acceleration(
             return agent_accels
         else:
             print(
-                "%sAgent" % color_red,
+                "%sAgent" % color_text["red"],
                 agent_name,
-                "is not in the SimStates%s" % color_reset,
+                "is not in the SimStates%s" % color_text["reset"],
             )
     else:
         return []

@@ -1,6 +1,6 @@
 import numpy as np
 from dotmap import DotMap
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 from waypoint_grids.projected_image_space_grid import ProjectedImageSpaceGrid
 
 
@@ -122,7 +122,10 @@ def main_test() -> None:
     np.random.seed(seed=1)
     test_image_space_grid()
     # visualize_world_space_grid()
-    print("%sImage space grid tests passed!%s" % (color_green, color_reset))
+    print(
+        "%sImage space grid tests passed!%s"
+        % (color_text["green"], color_text["reset"])
+    )
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ from systems.dubins_v1 import DubinsV1
 from trajectory.trajectory import SystemConfig, Trajectory
 from utils import utils
 from utils.angle_utils import angle_normalize, rotate_pos_nk2
-from utils.utils import *
+from utils.utils import color_text
 
 
 def create_params() -> DotMap:
@@ -229,7 +229,10 @@ def main_test() -> None:
     test_rotate()
     test_coordinate_transform()
     test_lqr_feedback_coordinate_transform()
-    print("%sCoordinate transform tests passed!%s" % (color_green, color_reset))
+    print(
+        "%sCoordinate transform tests passed!%s"
+        % (color_text["green"], color_text["reset"])
+    )
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ from dotmap import DotMap
 from matplotlib import pyplot
 from socnav.socnav_renderer import SocNavRenderer
 
-from utils.utils import color_green, color_red, color_reset, natural_sort, touch
+from utils.utils import color_text, natural_sort, touch
 
 
 def plot_image_observation(
@@ -473,9 +473,10 @@ def save_to_gif(
             images.append(imageio.imread(filename))
         except:
             print(
-                "%sUnable to read file:" % color_red,
+                "%sUnable to read file:" % color_text["red"],
                 filename,
-                "Try clearing the directory of old files and rerunning%s" % color_reset,
+                "Try clearing the directory of old files and rerunning%s"
+                % color_text["reset"],
             )
             exit(1)
         print(
@@ -487,10 +488,12 @@ def save_to_gif(
     output_location = os.path.join(IMAGES_DIR, gif_filename + ".gif")
     kargs = {"duration": duration}  # 1/fps
     imageio.mimsave(output_location, images, "GIF", **kargs)
-    print("%sRendered gif at" % color_green, output_location, "\033[0m")
+    print(
+        "%sRendered gif at" % color_text["green"], output_location, color_text["reset"]
+    )
     # Clearing remaining files to not affect next render
     if clear_old_files:
         for f in files:
             os.remove(f)
-        print("%sCleaned directory" % color_green, "\033[0m")
+        print("%sCleaned directory" % color_text["green"], color_text["reset"])
 

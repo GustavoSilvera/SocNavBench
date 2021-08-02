@@ -12,8 +12,7 @@ from dotmap import DotMap
 from simulators.sim_state import SimState
 from trajectory.trajectory import SystemConfig
 from utils.utils import (
-    color_red,
-    color_reset,
+    color_text,
     euclidean_dist2,
     generate_config_from_pos_3,
 )
@@ -303,7 +302,7 @@ class PrerecordedHuman(Human):
             if ped_id not in all_peds:
                 print(
                     "%sRequested agent %d not found in dataset: %s%s"
-                    % (color_red, ped_id, csv_file, color_reset)
+                    % (color_text["red"], ped_id, csv_file, color_text["reset"])
                 )
                 # this can happen based off the dataset
                 continue

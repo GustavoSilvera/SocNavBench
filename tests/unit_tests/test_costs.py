@@ -2,7 +2,7 @@ import numpy as np
 from costs.quad_cost_with_wrapping import QuadraticRegulatorRef
 from dotmap import DotMap
 from systems.dubins_v1 import DubinsV1
-from utils.utils import *
+from utils.utils import color_text
 
 
 def create_params() -> DotMap:
@@ -68,7 +68,7 @@ def test_quad_cost_with_wrapping() -> None:
 
 def main_test() -> None:
     test_quad_cost_with_wrapping()
-    print("%sQuad costs tests passed!%s" % (color_green, color_reset))
+    print("%sQuad costs tests passed!%s" % (color_text["green"], color_text["reset"]))
 
 
 if __name__ == "__main__":

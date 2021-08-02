@@ -12,10 +12,7 @@ from obstacles.sbpd_map import SBPDMap
 from socnav.socnav_renderer import SocNavRenderer
 from utils.utils import (
     absmax,
-    color_green,
-    color_print,
-    color_red,
-    color_reset,
+    color_text,
     euclidean_dist2,
     iter_print,
     termination_cause_to_color,
@@ -72,9 +69,9 @@ class Simulator(SimulatorHelper):
         if self.dt < self.params.dt:
             print(
                 "%sSimulation dt is too small; either lower the gen_agents' dt's"
-                % color_red,
+                % color_text["red"],
                 self.params.dt,
-                "or increase simulation delta_t%s" % color_reset,
+                "or increase simulation delta_t%s" % color_text["reset"],
             )
             exit(1)
 
@@ -136,7 +133,7 @@ class Simulator(SimulatorHelper):
             if w_dt > self.dt:
                 print(
                     "%sSim-cycle took %.3fs > %.3fs%s"
-                    % (color_red, w_dt, self.dt, color_reset)
+                    % (color_text["red"], w_dt, self.dt, color_text["reset"])
                 )
                 return
             # sleep to run in as-close-as-possible to real-time
@@ -161,10 +158,9 @@ class Simulator(SimulatorHelper):
                 self.robot.power_off()
             self.robot_collisions = self.gather_robot_collisions(iteration)
             c = termination_cause_to_color(self.robot.termination_cause)
-            term_color = color_print(c)
             print(
                 "Robot termination cause: %s%s%s"
-                % (term_color, self.robot.termination_cause, color_reset)
+                % (color_text[c], self.robot.termination_cause, color_text["reset"])
             )
         if self.episode_params.write_episode_log:
             self.generate_sim_log()
@@ -293,10 +289,13 @@ class Simulator(SimulatorHelper):
 
             print(
                 "%sSuccessfully wrote episode metrics to %s%s"
-                % (color_green, abs_filename, color_reset)
+                % (color_text["green"], abs_filename, color_text["reset"])
             )
         except:
-            print("%sWriting episode metrics failed%s" % (color_red, color_reset))
+            print(
+                "%sWriting episode metrics failed%s"
+                % (color_text["red"], color_text["reset"])
+            )
         return
 
     def generate_sim_log(self, filename: Optional[str] = "episode_log.txt") -> None:
@@ -359,10 +358,13 @@ class Simulator(SimulatorHelper):
                 f.close()
             print(
                 "%sSuccessfully wrote episode log to %s%s"
-                % (color_green, filename, color_reset)
+                % (color_text["green"], filename, color_text["reset"])
             )
         except:
-            print("%sWriting episode log failed%s" % (color_red, color_reset))
+            print(
+                "%sWriting episode log failed%s"
+                % (color_text["red"], color_text["reset"])
+            )
 
     """ BEGIN ROBOT UTILS """
 
@@ -379,7 +381,9 @@ class Simulator(SimulatorHelper):
         """
         # wait for joystick connection to be established
         if self.robot is None:
-            print("%sNo robot in simulator%s" % (color_red, color_reset))
+            print(
+                "%sNo robot in simulator%s" % (color_text["red"], color_text["reset"])
+            )
             return None
         # give the robot knowledge of the initial world
         self.robot.block_joystick = self.params.block_joystick

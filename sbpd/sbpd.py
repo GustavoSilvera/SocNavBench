@@ -22,8 +22,10 @@ import pickle
 import numpy as np
 
 from mp_env import mp_env
+from mp_env.map_utils import Foo
 from params.central_params import get_sbpd_data_dir
 from utils.utils import *
+
 try:
     # wont work on headless displays
     from mp_env.render import swiftshader_renderer as renderer
@@ -58,8 +60,8 @@ class Loader():
         mesh_file_name = obj_files[0]
         mesh_file_name_full = os.path.join(dir_name, mesh_file_name)
         #logging.error('Loading building from obj file: %s', mesh_file_name_full)
-        print("%sLoading building mesh from obj:" % (color_blue),
-              mesh_file_name_full, "%s" % (color_reset))
+        print("%sLoading building mesh from obj:" % (color_text["blue"]),
+              mesh_file_name_full, "%s" % (color_text["reset"]))
         shape = renderer.Shape(mesh_file_name_full, load_materials=True,
                                name_prefix=building['name'] + '_', materials_scale=materials_scale)
         return [shape]

@@ -4,8 +4,10 @@ import random
 import socket
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 from agents.agent import Agent
+from dotmap import DotMap
 from obstacles.sbpd_map import SBPDMap
 from params.central_params import (
     create_joystick_params,
@@ -16,7 +18,13 @@ from params.central_params import (
 )
 from simulators.episode import Episode
 from simulators.sim_state import SimState
-from utils.utils import *
+from utils.utils import (
+    color_text,
+    conn_recv,
+    iter_print,
+    termination_cause_to_color,
+    touch,
+)
 
 # seed the random number generator
 random.seed(get_seed())
@@ -107,7 +115,11 @@ class JoystickBase:
                 if len(command_grp) != 2:
                     print(
                         '%sERROR: joystick expecting (v, w) for velocity commands. Got "(%s)"%s'
-                        % (color_red, iter_print(command_grp), color_reset)
+                        % (
+                            color_text["red"],
+                            iter_print(command_grp),
+                            color_text["reset"],
+                        )
                     )
                 assert len(command_grp) == 2
         else:
@@ -116,7 +128,11 @@ class JoystickBase:
                 if len(command_grp) != 4:
                     print(
                         '%sERROR: joystick expecting (x, y, theta, v) for positional commands. Got "(%s)"%s'
-                        % (color_red, iter_print(command_grp), color_reset)
+                        % (
+                            color_text["red"],
+                            iter_print(command_grp),
+                            color_text["reset"],
+                        )
                     )
                 assert len(command_grp) == 4
         json_dict: Dict[str, str] = {}
@@ -144,9 +160,9 @@ class JoystickBase:
     def finish_episode(self) -> None:
         # finished this episode
         print(
-            "%sFinished episode:" % color_green,
+            "%sFinished episode:" % color_text["green"],
             self.current_ep.get_name(),
-            "%s" % color_reset,
+            "%s" % color_text["reset"],
         )
         # If current episode is the last one, the joystick is done
         if self.current_ep.get_name() == self.episode_names[-1]:
@@ -182,9 +198,9 @@ class JoystickBase:
         connection.close()
         if self.joystick_params.verbose:
             print(
-                "%sreceived" % color_blue,
+                "%sreceived" % color_text["blue"],
                 response_len,
-                "bytes from robot%s" % color_reset,
+                "bytes from robot%s" % color_text["reset"],
             )
         if response_len > 0:
             data_str = data_b.decode("utf-8")  # bytes to str
@@ -224,10 +240,13 @@ class JoystickBase:
         # case where the robot sends a power-off signal
         if not sim_state_json["robot_on"]:
             term_status = sim_state_json["termination_cause"]
-            term_color = color_print(termination_cause_to_color(term_status))
             print(
                 "\npowering off joystick, robot terminated with: %s%s%s"
-                % (term_color, term_status, color_reset)
+                % (
+                    color_text[termination_cause_to_color(term_status)],
+                    term_status,
+                    color_text["reset"],
+                )
             )
             self.joystick_on = False
             return False  # robot is off, do not continue
@@ -288,7 +307,11 @@ class JoystickBase:
             self.current_ep = Episode(name, env, agents, max_t, r_start, r_goal)
             print(
                 "%sRunning test for %s%s"
-                % (color_yellow, self.current_ep.get_name(), color_reset)
+                % (
+                    color_text["yellow"],
+                    self.current_ep.get_name(),
+                    color_text["reset"],
+                )
             )
             assert self.current_ep.get_name() in self.episode_names
         else:
@@ -335,7 +358,10 @@ class JoystickBase:
             touch(abs_path)  # Just as the bash command
         pd_df.to_csv(abs_path)
         if self.joystick_params.verbose:
-            print("%sUpdated pandas dataframe%s" % (color_green, color_reset))
+            print(
+                "%sUpdated pandas dataframe%s"
+                % (color_text["green"], color_text["reset"])
+            )
 
     """ END PANDAS UTILS """
 
@@ -348,7 +374,10 @@ class JoystickBase:
                 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 s.connect(self.recv_ID)
             except:
-                print("%sClosing listener socket%s" % (color_red, color_reset))
+                print(
+                    "%sClosing listener socket%s"
+                    % (color_text["red"], color_text["reset"])
+                )
             self.robot_receiver_socket.close()
 
     def send_to_robot(self, message: str) -> None:
@@ -375,13 +404,13 @@ class JoystickBase:
         except Exception as e:
             print(
                 "%sUnable to connect to robot%s. Reason: %s"
-                % (color_red, color_reset, e)
+                % (color_text["red"], color_text["reset"], e)
             )
             print("Make sure you have a simulation instance running")
             exit(1)
         print(
             "%sRobot <-- Joystick (sender) connection established%s"
-            % (color_green, color_reset)
+            % (color_text["green"], color_text["reset"])
         )
         assert self.robot_sender_socket
 
@@ -401,7 +430,7 @@ class JoystickBase:
         connection, client = self.robot_receiver_socket.accept()
         print(
             "%sRobot --> Joystick (receiver) connection established%s"
-            % (color_green, color_reset)
+            % (color_text["green"], color_text["reset"])
         )
         return connection, client
 

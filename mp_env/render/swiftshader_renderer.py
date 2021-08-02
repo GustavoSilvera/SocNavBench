@@ -37,6 +37,7 @@ import pyassimp as assimp
 from OpenGL.GLES2 import *
 from OpenGL.EGL import *
 from mp_env.render import rotation_utils
+from mp_env.map_utils import Foo, Timer
 from utils.utils import *
 
 __version__ = 'swiftshader_renderer'
@@ -97,11 +98,11 @@ class Shape():
             m.name = name_prefix + m.name + '_{:05d}'.format(i) + name_suffix
         # logging.error('#Meshes: %d', len(self.meshes))
         print("%sNumber of Meshes:" %
-              (color_yellow), len(self.meshes), '\033[0m')
+              (color_text["yellow"]), len(self.meshes), '\033[0m')
         dir_name = os.path.dirname(obj_file)
         # Load materials
         materials = None
-        print("%sLoading meshes from" % (color_orange), dir_name, '\033[00m')
+        print("%sLoading meshes from" % (color_text["orange"]), dir_name, '\033[00m')
         if load_materials:
             materials = []
             i = 0
@@ -110,20 +111,20 @@ class Shape():
                 try:
                     file_name = os.path.join(dir_name, all_files[i])
                 except:
-                    print("%sout of bounds reference to index" % (color_red),
-                          i, "out of", len(all_files), "%s" % (color_reset))
+                    print("%sout of bounds reference to index" % (color_text["red"]),
+                          i, "out of", len(all_files), "%s" % (color_text["reset"]))
                     continue
                 i = i + 1
                 #assert(os.path.exists(file_name)), 'Texture file {:s} foes not exist.'.format(file_name)
                 if(not(os.path.exists(file_name))):
-                    print("%sTexture file" % (color_red), file_name,
+                    print("%sTexture file" % (color_text["red"]), file_name,
                           "does not exist.", '\033[0m')
                     sys.exit(1)
                 materials.append(self._load_materials_from_file(
                     file_name, materials_scale))
         self.scene = scene
         print("%sAll meshes successfully loaded%s" %
-              (color_green, color_reset))
+              (color_text["green"], color_text["reset"]))
         self.materials = materials
 
     @staticmethod

@@ -3,7 +3,7 @@ import numpy as np
 from dotmap import DotMap
 from trajectory.spline.spline_3rd_order import Spline3rdOrder
 from trajectory.trajectory import SystemConfig
-from utils.utils import color_green, color_reset
+from utils.utils import color_text
 
 
 def test_spline_3rd_order(visualize=False) -> None:
@@ -234,7 +234,7 @@ def main_test() -> None:
     test_spline_3rd_order(visualize=False)
     test_spline_rescaling()
     test_piecewise_spline(visualize=False)
-    print("%sSpline tests passed!%s" % (color_green, color_reset))
+    print("%sSpline tests passed!%s" % (color_text["green"], color_text["reset"]))
 
 
 if __name__ == "__main__":

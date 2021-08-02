@@ -15,7 +15,7 @@ from obstacles.sbpd_map import SBPDMap
 from params.central_params import create_simulator_params
 from socnav.socnav_renderer import SocNavRenderer
 from utils.image_utils import render_rgb_and_depth, render_scene, save_to_gif
-from utils.utils import color_blue, color_green, color_orange, color_red, color_reset
+from utils.utils import color_text
 
 from simulators.sim_state import SimState
 
@@ -141,13 +141,13 @@ class SimulatorHelper(object):
         print(
             "A:",
             self.total_agents,
-            "%sSuccess:" % (color_green),
+            "%sSuccess:" % (color_text["green"]),
             self.num_completed_agents,
-            "%sCollide:" % (color_red),
+            "%sCollide:" % (color_text["red"]),
             self.num_collided_agents,
-            "%sTime:" % (color_blue),
+            "%sTime:" % (color_text["blue"]),
             self.num_timeout_agents,
-            "%sFrames:" % (color_reset),
+            "%sFrames:" % (color_text["reset"]),
             rendered_frames,
             "T = %.3f" % (self.sim_t),
             "\r",
@@ -293,12 +293,17 @@ class SimulatorHelper(object):
         """
         fps_scale: float = self.params.fps_scale_down
         if fps_scale == 0 or not self.params.record_video:
-            print("%sNot rendering movie%s" % (color_orange, color_reset))
+            print(
+                "%sNot rendering movie%s" % (color_text["orange"], color_text["reset"])
+            )
             return
 
         # Rendering movie
         fps: float = (1.0 / self.dt) * fps_scale
-        print("%sRendering movie with fps=%d%s" % (color_orange, fps, color_reset))
+        print(
+            "%sRendering movie with fps=%d%s"
+            % (color_text["orange"], fps, color_text["reset"])
+        )
         num_states = len(self.sim_states)
         num_frames = int(np.ceil(num_states * fps_scale))
 
@@ -376,12 +381,12 @@ class SimulatorHelper(object):
         # finish all the other processors if there are any
         for proc in gif_processes:
             proc.join()
-        print(
-            "Rendered frames: %d out of %d, %.3f%%\nFinished rendering all frames"
-            % (num_frames, num_frames, 100.0)
-        )  # make sure it says 100% at the end
         time_end = float(time.time())
-        print("rendering took %.5fs" % ((time_end - start_time)))
+        print(
+            "Rendered frames: %d out of %d, %.3f%%\n"
+            "Finished rendering in %.3fs"
+            % (num_frames, num_frames, 100.0, (time_end - start_time))
+        )  # make sure it says 100% at the end
 
         # convert all the generated frames into a gif file
         self.save_frames_to_gif(filename=self.episode_params.name)
