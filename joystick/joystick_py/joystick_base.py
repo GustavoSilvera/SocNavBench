@@ -306,7 +306,7 @@ class JoystickBase:
             # creates a new instance of the episode for further use
             self.current_ep = Episode(name, env, agents, max_t, r_start, r_goal)
             print(
-                "%sRunning test for %s%s"
+                "Running test for %s%s%s"
                 % (
                     color_text["yellow"],
                     self.current_ep.get_name(),

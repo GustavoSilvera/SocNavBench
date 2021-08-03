@@ -5,7 +5,7 @@ import random
 import shutil
 import string
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from dotmap import DotMap
@@ -34,42 +34,57 @@ def render_angle_frequency(p: DotMap) -> int:
     return int(p.episode_horizon / 25)
 
 
-def log_dict_as_json(params: DotMap, filename: str) -> None:
-    """Save params (either a DotMap object or a python dictionary) to a file in json format"""
-    with open(filename, "w") as f:
-        if isinstance(params, DotMap):
-            params = params.toDict()
-        param_dict_serializable = _to_json_serializable_dict(copy.deepcopy(params))
-        json.dump(param_dict_serializable, f, indent=4, sort_keys=True)
-
-
 def get_time_str() -> str:
     return time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 
-def _to_json_serializable_dict(param_dict: Dict[str, str]) -> Dict[str, int or str]:
-    """Converts params_dict to a json serializable dict.
+def to_json_type(elem: Any) -> str or int or float or list or dict:
+    """ Converts an element to a json serializable type. """
+    if isinstance(elem, (int, str, bool, float)):
+        return elem  # nothing to do. Primitive already
+    if isinstance(elem, (np.int64, np.int32)):
+        return int(elem)
+    elif isinstance(elem, (np.float64, np.float64)):
+        return float(elem)
+    elif isinstance(elem, np.ndarray):
+        return elem.tolist()
+    elif isinstance(elem, dict):
+        # recursive for dictionaries within dictionaries
+        return dict_to_json(elem)
+    elif isinstance(elem, list):
+        # recursive for lists within lists
+        return list_to_json(elem)
+    elif hasattr(elem, "to_json_type") and callable(getattr(elem, "to_json_type")):
+        return elem.to_json_type()
+    elif type(elem) is type:  # elem is a class
+        return str(elem)
+    # try a catch-all by converting to str
+    try:
+        return str(elem)
+    except Exception as e:
+        print(
+            "{}ERROR: could not serialize elem {} of type {}. Ex: {}{}".format(
+                color_text["red"], elem, type(elem), e, color_text["reset"]
+            )
+        )
+        raise e
 
-    Args:
-        param_dict (dict): the dictionary to be serialized
-    """
 
-    def _to_serializable_type(elem):
-        """ Converts an element to a json serializable type. """
-        if isinstance(elem, np.int64) or isinstance(elem, np.int32):
-            return int(elem)
-        if isinstance(elem, np.ndarray):
-            return elem.tolist()
-        if isinstance(elem, dict):
-            return _to_json_serializable_dict(elem)
-        if type(elem) is type:  # elem is a class
-            return str(elem)
-        else:
-            return str(elem)
-
+def dict_to_json(param_dict: Dict[str, Any]) -> Dict[str, str or int or float]:
+    """ Converts params_dict to a json serializable dict."""
+    json_dict: Dict[str, str or int or float] = {}
     for key in param_dict.keys():
-        param_dict[key] = _to_serializable_type(param_dict[key])
-    return param_dict
+        # possibly recursive for dicts in dicts
+        json_dict[key] = to_json_type(param_dict[key])
+    return json_dict
+
+
+def list_to_json(param_list: List[Any]) -> List[str or int or float or bool]:
+    """ Converts params_list to a json serializable list."""
+    json_list: List[str or int or float or bool] = [
+        to_json_type(elem) for elem in param_list
+    ]
+    return json_list
 
 
 def euclidean_dist2(p1: List[float], p2: List[float]) -> float:
@@ -218,19 +233,6 @@ def termination_cause_to_color(cause: str) -> Optional[str]:
     if cause in cause_colour_mappings:
         return cause_colour_mappings[cause]
     return None
-
-
-def color_print(color: str) -> str:
-    colour_map: Dict[str, str] = {
-        "green": color_text[green],
-        "red": color_text[red],
-        "blue": color_text[blue],
-        "yellow": color_text[yellow],
-        "orange": color_text[orange],
-    }
-    if color in colour_map:
-        return colour_map[color]
-    return color_text[reset]  # default is no colour
 
 
 def iter_print(l: List or Dict) -> str:

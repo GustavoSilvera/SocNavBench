@@ -197,15 +197,15 @@ class Simulator(SimulatorHelper):
             saved_robots[self.robot.get_name()] = AgentState.from_agent(self.robot)
             last_robot_collision = self.robot.latest_collider
         current_state = SimState(
-            saved_env,
-            pedestrians,
-            saved_robots,
-            self.sim_t,
-            wall_t,
-            self.dt,
-            self.episode_params.name,
-            self.episode_params.max_time,
-            last_robot_collision,
+            environment=saved_env,
+            pedestrians=pedestrians,
+            robots=saved_robots,
+            sim_t=self.sim_t,
+            wall_t=wall_t,
+            delta_t=self.dt,
+            episode_name=self.episode_params.name,
+            max_time=self.episode_params.max_time,
+            ped_collider=last_robot_collision,
         )
         # Save current state to a class dictionary indexed by simulator time
         sim_t_step: int = round(self.sim_t / self.dt)

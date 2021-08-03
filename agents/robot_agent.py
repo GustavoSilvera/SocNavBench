@@ -246,7 +246,7 @@ class RobotAgent(Agent):
         print("\nRobot powering off, received", len(self.joystick_inputs), "commands")
         self.end_acting = True
         try:
-            quit_message = self.world_state.to_json(
+            quit_message: str = self.world_state.to_json(
                 robot_on=False, termination_cause=self.termination_cause
             )
             self.send_to_joystick(quit_message)
@@ -265,7 +265,8 @@ class RobotAgent(Agent):
         # send the (JSON serialized) world state per joystick's request
         if self.joystick_requests_world == 0:
             world_state: str = self.world_state.to_json(
-                robot_on=not self.get_end_acting()
+                robot_on=not self.get_end_acting(),
+                termination_cause=self.termination_cause,
             )
             self.send_to_joystick(world_state)
             # immediately note that the world has been sent:
