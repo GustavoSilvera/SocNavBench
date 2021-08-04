@@ -43,7 +43,7 @@ def gather_metadata(
     # the agent has recently been collided with and is on a "collision cooldown"
     collided = a.get_collided() or (a.get_collision_cooldown() > 0)
     markersize = a.get_radius() * ppm
-    pos_3 = a.get_current_config().to_3D_numpy()
+    pos_3 = a.get_current_config().position_and_heading_nk3(squeeze=True)
     if traj_col == "":
         traj_col = a.get_color()
     start_3 = None
@@ -51,8 +51,8 @@ def gather_metadata(
     if plot_start_goal:
         try:
             # set the start and goal if it exists in the agent, else use the provided
-            start_3 = a.get_start_config().to_3D_numpy()
-            goal_3 = a.get_goal_config().to_3D_numpy()
+            start_3 = a.get_start_config().position_and_heading_nk3(squeeze=True)
+            goal_3 = a.get_goal_config().position_and_heading_nk3(squeeze=True)
         except:
             # use the start_3 and goal_3 provided
             start_3 = start

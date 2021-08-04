@@ -188,7 +188,7 @@ def path_irregularity(
     if central_sim.robot.termination_cause == "Success":
         path_irr = cost_functions.path_irregularity(trajectory=robot_trajectory)
     else:
-        goal = central_sim.robot.get_goal_config().to_3D_numpy()
+        goal = central_sim.robot.get_goal_config().position_and_heading_nk3()
         path_irr = cost_functions.path_irregularity(
             trajectory=robot_trajectory, goal_config=goal
         )

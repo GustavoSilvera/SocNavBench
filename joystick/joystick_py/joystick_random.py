@@ -20,7 +20,9 @@ class JoystickRandom(JoystickBase):
         # NOTE: self.sim_state_now is updated with the current world state
         # can get agent/robot position info from it, see simulators/sim_state.py
         self.robot_posn = (
-            self.sim_state_now.get_robot().get_current_config().to_3D_numpy()
+            self.sim_state_now.get_robot()
+            .get_current_config()
+            .position_and_heading_nk3(squeeze=True)
         )
 
     def joystick_plan(self) -> None:

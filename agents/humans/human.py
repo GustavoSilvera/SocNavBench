@@ -5,11 +5,7 @@ import numpy as np
 from agents.agent import Agent
 from dotmap import DotMap
 from trajectory.trajectory import SystemConfig
-from utils.utils import (
-    generate_config_from_pos_3,
-    generate_name,
-    generate_random_config,
-)
+from utils.utils import generate_name, generate_random_config
 
 
 class HumanAppearance:
@@ -148,8 +144,8 @@ class Human(Agent):
 
         generated_humans: List[Agent] = []
         for i in range(num_gen_humans):
-            start_config = generate_config_from_pos_3(starts[i])
-            goal_config = generate_config_from_pos_3(goals[i])
+            start_config = SystemConfig.from_pos3(starts[i])
+            goal_config = SystemConfig.from_pos3(goals[i])
             human_i_name = "auto_%04d" % i
             # Generates a new human from the configs
             new_human_i = Human.generate_human(

@@ -147,7 +147,7 @@ class Building():
         human_appearance = human.get_appearance()
         current_config = human.get_current_config()
         self.people[human.get_name()] = human
-        pos_3 = current_config.to_3D_numpy()
+        pos_3 = current_config.position_and_heading_nk3(squeeze=True)
         speed = current_config.speed_nk1()
         gender = human_appearance.get_gender()
         human_materials = human_appearance.get_texture()

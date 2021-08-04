@@ -245,35 +245,13 @@ def iter_print(l: List or Dict) -> str:
 """ BEGIN configs functions """
 
 
-def generate_config_from_pos_3(
-    pos_3: np.ndarray,
-    dt: Optional[float] = 0.1,
-    v: Optional[float] = 0,
-    w: Optional[float] = 0,
-) -> SystemConfig:
-    pos_n11 = np.array([[[pos_3[0], pos_3[1]]]], dtype=np.float32)
-    heading_n11 = np.array([[[pos_3[2]]]], dtype=np.float32)
-    speed_nk1 = np.ones((1, 1, 1), dtype=np.float32) * v
-    angular_speed_nk1 = np.ones((1, 1, 1), dtype=np.float32) * w
-    return SystemConfig(
-        dt,
-        1,
-        1,
-        position_nk2=pos_n11,
-        heading_nk1=heading_n11,
-        speed_nk1=speed_nk1,
-        angular_speed_nk1=angular_speed_nk1,
-        variable=False,
-    )
-
-
 def generate_random_config(
     environment: Dict[str, int or float or np.ndarray],
     dt: Optional[float] = 0.1,
     max_vel: Optional[float] = 0.6,
 ) -> SystemConfig:
     pos_3: np.ndarray = generate_random_pos_in_environment(environment)
-    return generate_config_from_pos_3(pos_3, dt=dt, v=max_vel)
+    return SystemConfig.from_pos3(pos_3, dt=dt, v=max_vel)
 
 
 def generate_random_pos_3(

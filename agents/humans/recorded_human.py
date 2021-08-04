@@ -9,11 +9,7 @@ from agents.humans.human import Human, HumanAppearance
 from dotmap import DotMap
 from simulators.sim_state import SimState
 from trajectory.trajectory import SystemConfig
-from utils.utils import (
-    color_text,
-    euclidean_dist2,
-    generate_config_from_pos_3,
-)
+from utils.utils import color_text, euclidean_dist2
 
 
 class PrerecordedHuman(Human):
@@ -85,7 +81,7 @@ class PrerecordedHuman(Human):
         posn_interp = [x, y, theta]
         last_t = np.floor((self.get_rel_t() - self.t_data[0]) / Agent.sim_dt)
         last_non_interp_v = np.squeeze(self.posn_data[int(last_t)].speed_nk1())
-        posn_interp_conf = generate_config_from_pos_3(posn_interp, v=last_non_interp_v)
+        posn_interp_conf = SystemConfig.from_pos3(posn_interp, v=last_non_interp_v)
         return posn_interp_conf
 
     def sense(self, sim_state: SimState) -> None:
@@ -248,7 +244,7 @@ class PrerecordedHuman(Human):
         assert len(xytheta_data) == len(v_data)
         config_data: List[SystemConfig] = []
         for i, pos3 in enumerate(xytheta_data):
-            config_data.append(generate_config_from_pos_3(pos3, v=v_data[i]))
+            config_data.append(SystemConfig.from_pos3(pos3, v=v_data[i]))
         return config_data
 
     @staticmethod

@@ -30,15 +30,14 @@ def test_spline_3rd_order(visualize=False) -> None:
     goal_heading_nk1 = np.ones((n, 1, 1), dtype=np.float32) * target_state[2]
     goal_speed_nk1 = np.ones((n, 1, 1), dtype=np.float32) * vf
 
-    start_config = SystemConfig(dt, n, 1, speed_nk1=start_speed_nk1, variable=False)
+    start_config = SystemConfig(dt, n, 1, speed_nk1=start_speed_nk1)
     goal_config = SystemConfig(
-        dt,
-        n,
-        1,
+        dt=dt,
+        n=n,
+        k=1,
         position_nk2=goal_pos_nk2,
         speed_nk1=goal_speed_nk1,
         heading_nk1=goal_heading_nk1,
-        variable=True,
     )
 
     start_nk5 = start_config.position_heading_speed_and_angular_speed_nk5()
@@ -112,13 +111,12 @@ def test_piecewise_spline(visualize=False) -> None:
         heading_nk1 = np.ones((n, 1, 1), dtype=np.float32) * s[2]  # Theta angle matrix
         speed_nk1 = np.ones((n, 1, 1), dtype=np.float32) * s[3]  # Speed matrix
         next_config = SystemConfig(
-            dt,
-            n,
-            1,
+            dt=dt,
+            n=n,
+            k=1,
             position_nk2=s_pos_nk2,
             speed_nk1=speed_nk1,
             heading_nk1=heading_nk1,
-            variable=False,
         )
         # Append to the trajectory if a new trajectory can be constructed
         # Note that any spline needs a 'previous' and 'next' state
@@ -170,14 +168,13 @@ def test_spline_rescaling() -> None:
     max_angular_speed = 1.1
 
     # Define start and goal configurations
-    start_config = SystemConfig(dt, n, 1, speed_nk1=start_speed_nk1, variable=False)
+    start_config = SystemConfig(dt, n, 1, speed_nk1=start_speed_nk1)
     goal_config = SystemConfig(
-        dt,
-        n,
+        dt=dt,
+        n=n,
         k=1,
         position_nk2=np.concatenate([goal_posx_n11, goal_posy_n11], axis=2),
         heading_nk1=goal_heading_n11,
-        variable=True,
     )
 
     # Fit the splines

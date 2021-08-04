@@ -37,7 +37,7 @@ class PersonalSpaceCost(Objective):
             ego_pos3 = ego_traj[0, i]  # (x,y,th)_self latest timestep
 
             # iterate through every non ego agent
-            agents: Dict[str, Agent] = sim_state.get_all_agents()
+            agents: Dict[str, AgentState] = sim_state.get_all_agents()
 
             for _, agent_vals in agents.items():
                 agent_pos3 = agent_vals.get_pos3()  # (x,y,th)

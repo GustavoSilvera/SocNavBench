@@ -301,8 +301,8 @@ class JoystickBase:
         # episode data
         if init_ep:
             # only update start/goal when creating an episode
-            r_start = robot.get_start_config().to_3D_numpy()
-            r_goal = robot.get_goal_config().to_3D_numpy()
+            r_start = robot.get_start_config().position_and_heading_nk3(squeeze=True)
+            r_goal = robot.get_goal_config().position_and_heading_nk3(squeeze=True)
             # creates a new instance of the episode for further use
             self.current_ep = Episode(name, env, agents, max_t, r_start, r_goal)
             print(
@@ -347,7 +347,9 @@ class JoystickBase:
                 # initialize dict for a specific agent if dosent already exist
                 self.agent_log[a] = {}
             self.agent_log[a][world_state.get_sim_t()] = (
-                agents_of_type[a].get_current_config().to_3D_numpy()
+                agents_of_type[a]
+                .get_current_config()
+                .position_and_heading_nk3(squeeze=True)
             )
 
     def write_pandas(self) -> None:

@@ -9,7 +9,7 @@ from obstacles.sbpd_map import SBPDMap
 from params.central_params import create_agent_params
 from socnav.socnav_renderer import SocNavRenderer
 from trajectory.trajectory import SystemConfig, Trajectory
-from utils.utils import euclidean_dist2, generate_config_from_pos_3
+from utils.utils import euclidean_dist2
 
 from joystick_py.joystick_base import JoystickBase
 
@@ -40,12 +40,8 @@ class JoystickWithPlanner(JoystickBase):
     def init_control_pipeline(self) -> None:
         # NOTE: this is like an init() run *after* obtaining episode metadata
         # robot start and goal to satisfy the old Agent.planner
-        self.start_config: SystemConfig = generate_config_from_pos_3(
-            self.get_robot_start()
-        )
-        self.goal_config: SystemConfig = generate_config_from_pos_3(
-            self.get_robot_goal()
-        )
+        self.start_config: SystemConfig = SystemConfig.from_pos3(self.get_robot_start())
+        self.goal_config: SystemConfig = SystemConfig.from_pos3(self.get_robot_goal())
         # rest of the 'Agent' params used for the joystick planner
         self.agent_params: DotMap = create_agent_params(
             with_planner=True, with_obstacle_map=True
@@ -89,7 +85,9 @@ class JoystickWithPlanner(JoystickBase):
 
         # Update robot current position
         robot = list(self.sim_state_now.get_robots().values())[0]
-        self.robot_current = robot.get_current_config().to_3D_numpy()
+        self.robot_current = robot.get_current_config().position_and_heading_nk3(
+            squeeze=True
+        )
 
         # Updating robot speeds (linear and angular) based off simulator data
         self.robot_v = euclidean_dist2(self.robot_current, robot_prev) / self.sim_dt
@@ -101,8 +99,11 @@ class JoystickWithPlanner(JoystickBase):
         the subtrajectory, and relevant planner data
         - Access to sim_states from the self.current_world
         """
-        robot_config = generate_config_from_pos_3(
-            self.robot_current, dt=self.agent_params.dt, v=self.robot_v, w=self.robot_w
+        robot_config = SystemConfig.from_pos3(
+            pos3=self.robot_current,
+            dt=self.agent_params.dt,
+            v=self.robot_v,
+            w=self.robot_w,
         )
         self.planner_data = self.planner.optimize(
             robot_config, self.goal_config, sim_state_hist=self.sim_states
@@ -185,7 +186,7 @@ class JoystickWithPlannerPosns(JoystickWithPlanner):
         # can also try:
         #     # assumes the robot has executed all the previous commands in self.commands
         #     (x, y, th, v) = self.from_conf(self.commands, -1)
-        robot_config = generate_config_from_pos_3(pos_3=(x, y, th), v=v)
+        robot_config = SystemConfig.from_pos3(pos3=(x, y, th), v=v)
         self.planner_data = self.planner.optimize(
             robot_config, self.goal_config, sim_state_hist=self.sim_states
         )

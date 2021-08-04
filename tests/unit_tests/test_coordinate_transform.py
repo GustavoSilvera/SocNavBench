@@ -59,8 +59,8 @@ def test_coordinate_transform() -> None:
 
     pos_nk2 = np.ones((n, k, 2), dtype=np.float32) * np.random.rand()
     traj_global = Trajectory(dt=dt, n=n, k=k, position_nk2=pos_nk2)
-    traj_egocentric = Trajectory(dt=dt, n=n, k=k, variable=True)
-    traj_global_new = Trajectory(dt=dt, n=n, k=k, variable=True)
+    traj_egocentric = Trajectory(dt=dt, n=n, k=k)
+    traj_global_new = Trajectory(dt=dt, n=n, k=k)
 
     dubins_car.to_egocentric_coordinates(ref_config, traj_global, traj_egocentric)
 
@@ -105,8 +105,8 @@ def visualize_coordinate_transform() -> None:
     dt = 0.1
     dubins_car = DubinsV1(dt=dt)
 
-    traj_egocentric = Trajectory(dt=dt, n=n, k=k, variable=True)
-    traj_world = Trajectory(dt=dt, n=n, k=k, variable=True)
+    traj_egocentric = Trajectory(dt=dt, n=n, k=k)
+    traj_world = Trajectory(dt=dt, n=n, k=k)
 
     # Form a trajectory in global frame
     # convert to egocentric and back

@@ -407,7 +407,9 @@ class SimulatorHelper(object):
         """
         if self.robot:
             robot = list(state.get_robots().values())[0]
-            camera_pos_13 = robot.get_current_config().to_3D_numpy()
+            camera_pos_13 = robot.get_current_config().position_and_heading_nk3(
+                squeeze=True
+            )
         else:
             robot = None
             if camera_pose is not None:

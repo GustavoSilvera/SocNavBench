@@ -6,12 +6,7 @@ from agents.agent import Agent
 from agents.humans.human import Human, HumanAppearance
 from agents.robot_agent import RobotAgent
 from trajectory.trajectory import SystemConfig, Trajectory
-from utils.utils import (
-    color_text,
-    euclidean_dist2,
-    generate_config_from_pos_3,
-    to_json_type,
-)
+from utils.utils import color_text, euclidean_dist2, to_json_type
 
 """ These are smaller "wrapper" classes that are visible by other
 gen_agents/humans and saved during state deepcopies
@@ -97,15 +92,19 @@ class AgentState:
         return self.collision_cooldown
 
     def get_pos3(self) -> np.ndarray:
-        return self.get_current_config().to_3D_numpy()
+        return self.get_current_config().position_and_heading_nk3(squeeze=True)
 
     def to_json_type(self) -> Dict[str, str]:
         json_dict: Dict[str, str] = {}
         json_dict["name"] = self.name
-        json_dict["start_config"] = to_json_type(self.get_start_config().to_3D_numpy())
-        json_dict["goal_config"] = to_json_type(self.get_goal_config().to_3D_numpy())
+        json_dict["start_config"] = to_json_type(
+            self.get_start_config().position_and_heading_nk3(squeeze=True)
+        )
+        json_dict["goal_config"] = to_json_type(
+            self.get_goal_config().position_and_heading_nk3(squeeze=True)
+        )
         json_dict["current_config"] = to_json_type(
-            self.get_current_config().to_3D_numpy()
+            self.get_current_config().position_and_heading_nk3(squeeze=True)
         )
         json_dict["radius"] = self.radius
         return json_dict
@@ -117,11 +116,11 @@ class AgentState:
         start_config = None
         goal_config = None
         if "start_config" in json_dict:
-            start_config = generate_config_from_pos_3(json_dict["start_config"])
+            start_config = SystemConfig.from_pos3(json_dict["start_config"])
         if "goal_config" in json_dict:
-            goal_config = generate_config_from_pos_3(json_dict["goal_config"])
+            goal_config = SystemConfig.from_pos3(json_dict["goal_config"])
         assert "current_config" in json_dict
-        current_config = generate_config_from_pos_3(json_dict["current_config"])
+        current_config = SystemConfig.from_pos3(json_dict["current_config"])
         assert "radius" in json_dict
         radius = json_dict["radius"]
         return cls(
@@ -299,9 +298,9 @@ def compute_next_vel(
     sim_state_prev: SimState, sim_state_now: SimState, agent_name: str
 ) -> float:
     old_agent = sim_state_prev.get_all_agents()[agent_name]
-    old_pos = old_agent.get_current_config().to_3D_numpy()
+    old_pos = old_agent.get_current_config().position_and_heading_nk3(squeeze=True)
     new_agent = sim_state_now.get_all_agents()[agent_name]
-    new_pos = new_agent.get_current_config().to_3D_numpy()
+    new_pos = new_agent.get_current_config().position_and_heading_nk3(squeeze=True)
     # calculate distance over time
     delta_t = sim_state_now.get_sim_t() - sim_state_prev.get_sim_t()
     return euclidean_dist2(old_pos, new_pos) / delta_t

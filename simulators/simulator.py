@@ -337,7 +337,7 @@ class Simulator(SimulatorHelper):
             data += "Num commands executed by robot: %d\n" % self.robot.num_executed
             rob_displacement = euclidean_dist2(
                 ep_params.robot_start_goal[0],
-                self.robot.get_current_config().to_3D_numpy(),
+                self.robot.get_current_config().position_and_heading_nk3(squeeze=True),
             )
             data += "Robot displacement (m): %0.3f\n" % rob_displacement
             data += "Max robot velocity (m/s): %0.3f\n" % absmax(

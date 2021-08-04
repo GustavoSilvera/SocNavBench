@@ -125,7 +125,7 @@ class Agent(AgentBase):  # TODO: rename to AutoAgent or SamplingPlannerAgent
             repeat_second_to_last_speed=True,
         )
         self.planned_next_config: SystemConfig = SystemConfig.init_config_from_trajectory_time_index(
-            traj_segment, t=-1
+            traj_segment, idx=-1
         )
 
         tr_acc = self.params.planner_params.track_accel
@@ -148,7 +148,7 @@ class Agent(AgentBase):  # TODO: rename to AutoAgent or SamplingPlannerAgent
 
         # then update the current config incrementally (can teleport to end if t=-1)
         new_config = SystemConfig.init_config_from_trajectory_time_index(
-            self.trajectory, t=self.path_step
+            self.trajectory, idx=self.path_step
         )
         self.set_current_config(new_config)
 

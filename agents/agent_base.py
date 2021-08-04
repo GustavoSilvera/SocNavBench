@@ -131,7 +131,7 @@ class AgentBase(object):
 
     def _collision_in_group(self, own_pos: np.ndarray, group: List) -> bool:
         for a in group:
-            othr_pos = a.get_current_config().to_3D_numpy()
+            othr_pos = a.get_current_config().position_and_heading_nk3(squeeze=True)
             is_same_agent: bool = a.get_name() is self.get_name()
             if (
                 not is_same_agent
@@ -165,7 +165,7 @@ class AgentBase(object):
             # no double collisions
             return False
         if world_state is not None:
-            own_pos = self.get_current_config().to_3D_numpy()
+            own_pos = self.get_current_config().position_and_heading_nk3(squeeze=True)
             if include_robots and self._collision_in_group(
                 own_pos, world_state.get_robots().values()
             ):

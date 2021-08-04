@@ -8,7 +8,7 @@ from dotmap import DotMap
 from obstacles.sbpd_map import SBPDMap
 from params.central_params import create_robot_params
 from trajectory.trajectory import SystemConfig
-from utils.utils import conn_recv, generate_config_from_pos_3, generate_random_config
+from utils.utils import conn_recv, generate_random_config
 
 from agents.agent import Agent
 from agents.robot_utils import (
@@ -94,8 +94,8 @@ class RobotAgent(Agent):
         Sample a new random robot agent from all required features
         """
         robot_name: str = "robot_agent"  # constant name for the robot since there will only ever be one
-        start: SystemConfig = generate_config_from_pos_3(start_goal[0])
-        goal: SystemConfig = generate_config_from_pos_3(start_goal[1])
+        start: SystemConfig = SystemConfig.from_pos3(start_goal[0])
+        goal: SystemConfig = SystemConfig.from_pos3(start_goal[1])
         # In order to print more readable arrays
         np.set_printoptions(precision=2)
         if verbose:
@@ -111,8 +111,8 @@ class RobotAgent(Agent):
         NOTE: needs environment to produce valid configs
         """
         start_goal: Tuple[SystemConfig, SystemConfig] = [
-            generate_random_config(environment).to_3D_numpy(),
-            generate_random_config(environment).to_3D_numpy(),
+            generate_random_config(environment).position_and_heading_nk3(squeeze=True),
+            generate_random_config(environment).position_and_heading_nk3(squeeze=True),
         ]
         return cls.generate_robot(start_goal, verbose=False)
 
@@ -138,7 +138,7 @@ class RobotAgent(Agent):
         else:
             self.execute_position_cmds()
         if self.params.verbose:
-            print(self.get_current_config().to_3D_numpy())
+            print(self.get_current_config().position_and_heading_nk3(squeeze=True))
         # knowing that both executions took self.num_cmds_per_batch commands
         self.num_executed += self.num_cmds_per_batch
 
@@ -164,7 +164,7 @@ class RobotAgent(Agent):
             )
             # act trajectory segment
             self.current_config = SystemConfig.init_config_from_trajectory_time_index(
-                t_seg, t=-1
+                t_seg, idx=-1
             )
 
     def execute_position_cmds(self) -> None:
@@ -176,11 +176,11 @@ class RobotAgent(Agent):
             assert len(joystick_input) == 4  # has x,y,theta,velocity
             new_pos3 = joystick_input[:3]
             new_v = joystick_input[3]
-            old_pos3 = self.current_config.to_3D_numpy()
+            old_pos3 = self.current_config.position_and_heading_nk3(squeeze=True)
             # ensure the new position is reachable within velocity bounds
             new_pos3 = clip_posn(Agent.sim_dt, old_pos3, new_pos3, self.v_bounds)
             # move to the new position and update trajectory
-            new_config = generate_config_from_pos_3(new_pos3, v=new_v)
+            new_config = SystemConfig.from_pos3(new_pos3, v=new_v)
             self.set_current_config(new_config)
             self.trajectory.append_along_time_axis(
                 new_config, track_trajectory_acceleration=True
