@@ -37,7 +37,7 @@ class PrerecordedHuman(Human):
         self.yinterp: Callable[[float], float] = interps[1]
         self.thinterp: Callable[[float], float] = interps[2]
         if generate_appearance:
-            appearance = HumanAppearance.generate_rand_human_appearance(HumanAppearance)
+            appearance = HumanAppearance.generate_rand_human_appearance()
         else:
             appearance = None
         self.relative_diff: float = 0.0  # how much time the agent will spend stopped

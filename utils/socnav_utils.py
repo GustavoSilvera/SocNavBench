@@ -4,6 +4,8 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 from dotmap import DotMap
 from socnav.socnav_renderer import SocNavRenderer
+from agents.humans.human import HumanAppearance
+from sbpd.sbpd import StanfordBuildingParserDataset
 
 from utils.utils import color_text
 
@@ -65,10 +67,8 @@ def construct_environment(
     dx_m: float = dx_cm / 100.0
     if p.render_3D:
         # Get the surreal dataset for human generation
-        surreal_data = r.d
+        surreal_data: StanfordBuildingParserDataset = r.d
         # Update the Human's appearance classes to contain the dataset
-        from agents.humans.human import HumanAppearance
-
         HumanAppearance.dataset = surreal_data
         human_traversible = np.empty(traversible.shape)
         human_traversible.fill(1)  # initially all good

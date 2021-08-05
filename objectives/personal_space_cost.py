@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 import numpy as np
-from agents.agent import Agent
+from simulators.sim_state import AgentState
 from dotmap import DotMap
 from metrics.cost_functions import *
 from simulators.sim_state import SimState

@@ -11,6 +11,10 @@ from params.central_params import create_socnav_params, create_test_map_params
 
 def create_params() -> DotMap:
     p = create_socnav_params()
+
+    p.render_3D = False  # only test without renderer
+    p.building_params.load_meshes = False  # don't load any meshes
+
     # Obstacle avoidance parameters
     p.avoid_obstacle_objective = DotMap(
         obstacle_margin0=0.3, obstacle_margin1=0.5, power=2, obstacle_cost=25.0

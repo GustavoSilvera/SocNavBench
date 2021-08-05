@@ -35,7 +35,11 @@ import sys
 import numpy as np
 import pyassimp as assimp
 from OpenGL.GLES2 import *
-from OpenGL.EGL import *
+try:
+    # wont work on headless displays
+    from OpenGL.EGL import *
+except AttributeError:
+    pass
 from mp_env.render import rotation_utils
 from mp_env.map_utils import Foo, Timer
 from utils.utils import *
@@ -290,8 +294,12 @@ class SwiftshaderRenderer():
 
     def init_renderer_egl(self, width, height):
         major, minor = ctypes.c_long(), ctypes.c_long()
-        logging.debug('init_renderer_egl: EGL_DEFAULT_DISPLAY: %s',
-                      EGL_DEFAULT_DISPLAY)
+        try:
+            logging.debug('init_renderer_egl: EGL_DEFAULT_DISPLAY: %s',
+                        EGL_DEFAULT_DISPLAY)
+        except NameError:
+            print("{}ERROR: Make sure to use PYOPENGL_PLATFORM=egl for the EGL renderer to work{}".format(color_text["red"], color_text["reset"]))
+            raise
         # EGLNativeDisplayType.from_param(0)
         egl_default_display = EGL_DEFAULT_DISPLAY
 

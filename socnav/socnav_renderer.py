@@ -81,12 +81,10 @@ class SocNavRenderer:
         if ensure_only_one:
             r = cls.renderer
             if r is not None:
-                dn, bn, f, c = (
-                    r.p.dataset_name,
-                    r.p.building_name,
-                    r.p.flip,
-                    r.p.modalities,
-                )
+                dn: str = r.p.dataset_name
+                bn: str = r.p.building_name
+                f: bool = r.p.flip
+                c = r.p.modalities
                 if (
                     dn == params.dataset_name
                     and bn == params.building_name
@@ -95,9 +93,9 @@ class SocNavRenderer:
                 ):
                     return r
                 else:
-                    assert (
-                        False
-                    ), "Renderer settings are different than previously instantiated renderer"
+                    raise Exception(
+                        "Renderer settings are different than previously instantiated renderer"
+                    )
 
         cls.renderer = cls(params)
         if not deepcpy:
@@ -225,7 +223,7 @@ class SocNavRenderer:
         # the positive y axis points up. The robot is located at
         # (0, (crop_size[0]-1)/2) (in pixel coordinates) facing directly to the right
         x_axis_n2 = np.concatenate([np.cos(thetas_n1), np.sin(thetas_n1)], axis=1)
-        y_axis_n2 = -np.concatenate(
+        y_axis_n2 = -1 * np.concatenate(
             [np.cos(thetas_n1 + np.pi / 2.0), np.sin(thetas_n1 + np.pi / 2.0)], axis=1
         )
         robot_loc_2 = np.array([0, (crop_size[0] - 1.0) / 2.0])

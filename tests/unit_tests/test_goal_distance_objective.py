@@ -11,6 +11,10 @@ from utils.utils import color_text
 
 def create_params() -> DotMap:
     p = create_socnav_params()
+
+    p.render_3D = False  # only test without renderer
+    p.building_params.load_meshes = False  # don't load any meshes
+
     # Goal Distance parameters
     p.goal_distance_objective = DotMap(power=2, goal_cost=25.0, goal_margin=0.0)
     p.obstacle_map_params = DotMap(

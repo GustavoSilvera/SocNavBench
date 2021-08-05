@@ -1,7 +1,7 @@
 from random import randint
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
+from numpy.random import RandomState
 from agents.agent import Agent
 from dotmap import DotMap
 from trajectory.trajectory import SystemConfig
@@ -9,15 +9,20 @@ from utils.utils import generate_name, generate_random_config
 
 
 class HumanAppearance:
+
     # Static variable shared amongst all human appearances
     # This dataset holds all the SURREAL human textures and meshes
+    # TODO: fix circular dep: from sbpd.sbpd import StanfordBuildingParserDataset
+    # dataset: Optional[StanfordBuildingParserDataset] = None
     dataset = None
 
-    def __init__(self, gender: str, texture: List[str], shape: int, mesh_rng: int):
+    def __init__(
+        self, gender: str, texture: List[str], shape: int, mesh_rng: RandomState
+    ):
         self.gender: str = gender
         self.shape: int = shape
         self.texture: List[str] = texture
-        self.mesh_rng: int = mesh_rng
+        self.mesh_rng: RandomState = mesh_rng
 
     # Getters for the HumanAppearance class
     def get_shape(self) -> int:
@@ -29,28 +34,34 @@ class HumanAppearance:
     def get_texture(self) -> List[str]:
         return self.texture
 
-    def get_mesh_rng(self) -> int:
+    def get_mesh_rng(self) -> RandomState:
         return self.mesh_rng
 
-    def generate_human_appearance(
-        self, gender: str, texture: List[str], shape: int, mesh_rng: int
-    ):
+    @classmethod
+    def generate_rand_human_appearance(cls):
         """
-        Sample a new random human from all required features
+        Sample a new human from known identity features, but unknown 
+        positional/speed arguments (and mesh rng)
         """
-        return HumanAppearance(gender, texture, shape, mesh_rng)
+        # Set the Mesh seed. This is used to sample the actual mesh to be loaded
+        # which reflects the pose of the human skeleton.
+        mesh_rng: int = RandomState(randint(1, 1000))
 
-    def create_random_human_identity_from_dataset(self) -> Tuple[str, List[str], int]:
+        gender, texture, shape = HumanAppearance.random_human_identity_from_dataset()
+
+        return cls(gender, texture, shape, mesh_rng)
+
+    @staticmethod
+    def random_human_identity_from_dataset() -> Tuple[str, List[str], int]:
         """
         Sample a new human identity, but don't load it into
         memory
         """
         # Set the identity seed. this is used to sample the indentity that generates
         # the human gender, texture, and body shape
-        identity_rng = np.random.RandomState(randint(1, 1000))
+        identity_rng: RandomState = RandomState(randint(1, 1000))
         # Collecting Humanav dataset
-        dataset = HumanAppearance.dataset
-        if dataset is None:
+        if HumanAppearance.dataset is None:
             print("\033[31m", "ERROR: can't find Surreal Dataset", "\033[0m")
             exit(1)  # Failure condition
         # Using the SBPD dataset to generate a random gender, texture, and body shape
@@ -58,21 +69,10 @@ class HumanAppearance:
             human_gender,
             human_texture,
             body_shape,
-        ) = dataset.get_random_human_gender_texture_and_body_shape(identity_rng)
+        ) = HumanAppearance.dataset.get_random_human_gender_texture_and_body_shape(
+            identity_rng
+        )
         return human_gender, human_texture, body_shape
-
-    def generate_rand_human_appearance(self):
-        """
-        Sample a new human from known identity features, but unknown 
-        positional/speed arguments (and mesh rng)
-        """
-        # Set the Mesh seed. This is used to sample the actual mesh to be loaded
-        # which reflects the pose of the human skeleton.
-        mesh_rng = np.random.RandomState(randint(1, 1000))
-
-        gender, texture, shape = self.create_random_human_identity_from_dataset(self)
-
-        return self.generate_human_appearance(self, gender, texture, shape, mesh_rng)
 
 
 class Human(Agent):
@@ -83,7 +83,6 @@ class Human(Agent):
         start_config: SystemConfig,
         goal_config: SystemConfig,
     ):
-        self.name: str = name
         self.appearance: HumanAppearance = appearance
         super().__init__(start_config, goal_config, name)
 
@@ -111,7 +110,7 @@ class Human(Agent):
         human_name: str = name if name else generate_name(max_chars)
         # generate the appearance if requested
         if appearance is None and generate_appearance:
-            appearance = HumanAppearance.generate_rand_human_appearance(HumanAppearance)
+            appearance = HumanAppearance.generate_rand_human_appearance()
 
         # generate the configs if environment provided
         if environment is not None:

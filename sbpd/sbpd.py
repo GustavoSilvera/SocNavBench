@@ -21,16 +21,11 @@ import glob
 import pickle
 import numpy as np
 
-from mp_env import mp_env
+from mp_env.mp_env import Building
 from mp_env.map_utils import Foo
 from params.central_params import get_sbpd_data_dir
 from utils.utils import *
-
-try:
-    # wont work on headless displays
-    from mp_env.render import swiftshader_renderer as renderer
-except:
-    pass
+from mp_env.render import swiftshader_renderer as renderer
 
 
 def get_dataset(dataset_name, imset, data_dir, surreal_params=None):
@@ -69,7 +64,7 @@ class Loader():
     def load_data(self, name, robot, flip=False):
         env = Foo(padding=10, resolution=5, num_point_threshold=2,
                   valid_min=-10, valid_max=200, n_samples_per_face=200)
-        building = mp_env.Building(self, name, robot, env, flip=flip)
+        building = Building(self, name, robot, env, flip=flip)
         return building
 
     def load_random_human(self, speed, gender, human_materials, body_shape, rng):
