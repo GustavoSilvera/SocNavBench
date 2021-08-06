@@ -531,7 +531,7 @@ class Trajectory(object):
 
     def render(
         self,
-        axs: List[plt.axes],
+        axs: plt.axes,
         batch_idx: int = 0,
         freq: Optional[int] = 4,
         plot_quiver: Optional[bool] = True,
@@ -539,10 +539,9 @@ class Trajectory(object):
         plot_velocity: Optional[bool] = False,
         color: Optional[str] = "red",
         alpha: Optional[float] = 0,
-        label_start_and_end: Optional[bool] = False,
-        name: Optional[str] = "",
         linewidth: Optional[float] = 4,
         clip: Optional[int] = 0,
+        zorder: Optional[int] = 1,
     ) -> None:
         # use clip to only render the *last* "clip" numpoints of the trajectory
         xs = self._position_nk2[batch_idx, -1 : -1 * clip : -1, 0]
@@ -553,25 +552,19 @@ class Trajectory(object):
             axs.quiver(
                 xs[::freq], ys[::freq], np.cos(thetas[::freq]), np.sin(thetas[::freq])
             )
-        title_str = "{:s} Trajectory".format(name)
-        axs.plot(xs, ys, "-", color=color, alpha=alpha, linewidth=linewidth)
-        if label_start_and_end:
-            start_5 = self.position_heading_speed_and_angular_speed_nk5()[batch_idx, 0]
-            end_5 = self.position_heading_speed_and_angular_speed_nk5()[batch_idx, -1]
-            title_str += "\nStart: [{:.3e}, {:.3e}, {:.3f}, {:.3f}, {:.3f}]\n".format(
-                *start_5
-            ) + "End: [{:.3e}, {:.3e}, {:.3f}, {:.3f}, {:.3f}]".format(*end_5)
-        axs.set_title(title_str)
+        axs.plot(
+            xs, ys, "-", color=color, alpha=alpha, linewidth=linewidth, zorder=zorder
+        )
 
         if plot_heading:
-            print("\033[33m", "Plotting Heading", "\033[0m")
+            raise NotImplementedError
             axs[1].plot(
                 np.r_[: self.k] * self.dt, self._heading_nk1[batch_idx, :, 0], "r-"
             )
             axs[1].set_title("Theta")
 
         if plot_velocity:
-            print("\033[33m", "Plotting Velocity", "\033[0m")
+            raise NotImplementedError
             time = np.r_[: self.k] * self.dt
 
             axs[2].plot(time, self._speed_nk1[batch_idx, :, 0], "r-")
@@ -722,6 +715,7 @@ class SystemConfig(Trajectory):
             heading_nk1,
             angular_speed_nk1,
             angular_acceleration_nk1,
+            valid_horizons_n1=None,
         )
 
     def render(

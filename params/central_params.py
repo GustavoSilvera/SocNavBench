@@ -17,7 +17,9 @@ from waypoint_grids.projected_image_space_grid import ProjectedImageSpaceGrid
 cwd: str = os.getcwd()
 
 # then read in params for user editable, user-non-editable, episodes, and dataset
-user_config = configparser.ConfigParser()
+user_config = configparser.SafeConfigParser(
+    allow_no_value=True, inline_comment_prefixes=";"
+)
 user_config.read(os.path.join(cwd, "params/user_params.ini"))
 # get global randomness seed
 seed: int = user_config["socnav_params"].getint("seed")
@@ -303,6 +305,7 @@ def create_simulator_params(verbose=True) -> DotMap:
     p.block_joystick = sim_p.get("synchronous_mode") == "synchronous"
     p.delta_t_scale = sim_p.getfloat("delta_t_scale")
     p.socnav_params = create_socnav_params()
+    p.render_params = create_renderer_params(p.socnav_params.render_3D)
     p.img_scale = sim_p.getfloat("img_scale")
     p.max_frames = sim_p.getint("max_frames")
     # bound by 0 <= X <= 1
@@ -337,6 +340,38 @@ def create_simulator_params(verbose=True) -> DotMap:
     p.verbose_printing = sim_p.getboolean("verbose_printing")
     p.clear_files = sim_p.getboolean("clear_files")
     p.record_video = sim_p.getboolean("record_video")
+    return p
+
+
+def create_agent_render_params(agent_type: Optional[str] = "human"):
+    agent_render_p = user_config[agent_type + "_render_params"]
+    p = DotMap()
+    p.label = agent_render_p.get("label")
+    p.traj_col = agent_render_p.get("traj_color")
+    p.traj_alpha = agent_render_p.getfloat("traj_alpha")
+    p.normal_color = agent_render_p.get("normal_color")
+    p.alpha = agent_render_p.getfloat("alpha")
+    p.collision_color = agent_render_p.get("collision_color")
+    p.plot_trajectory = agent_render_p.getboolean("plot_trajectory")
+    p.max_traj_length = agent_render_p.getint("max_traj_length")
+    p.plot_start = agent_render_p.getboolean("plot_start")
+    p.start_label = agent_render_p.get("start_label")
+    p.start_col = agent_render_p.get("start_col")
+    p.plot_goal = agent_render_p.getboolean("plot_goal")
+    p.goal_label = agent_render_p.get("goal_label")
+    p.goal_col = agent_render_p.get("goal_col")
+    p.plot_quiver = agent_render_p.getboolean("plot_quiver")
+    return p
+
+
+def create_renderer_params(render_3d: bool) -> DotMap:
+    p = DotMap()
+    renderer_p = user_config["renderer_params"]
+    p.render_3D = render_3d
+    p.plot_meter_tick = renderer_p.getboolean("plot_meter_tick")
+    p.plot_quiver = renderer_p.getboolean("plot_quiver")
+    p.human_render_params = create_agent_render_params("human")
+    p.robot_render_params = create_agent_render_params("robot")
     return p
 
 

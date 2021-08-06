@@ -119,10 +119,10 @@ def test_socnav() -> None:
             else:
                 robot_agent = RobotAgent.generate_robot(episode.robot_start_goal)
                 simulator.add_agent(robot_agent)
-        # run simulation
+
+        # run simulation & render
         simulator.simulate()
-        # render the simulation result
-        simulator.render(r, None, filename=episode.name + "_obs")
+        simulator.render(r, filename=episode.name + "_obs")
 
     if not p.episode_params.without_robot:
         RobotAgent.close_robot_sockets()

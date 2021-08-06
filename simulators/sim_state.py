@@ -1,5 +1,7 @@
 import json
+
 from typing import Dict, List, Optional
+from dotmap import DotMap
 
 import numpy as np
 from agents.agent import Agent
@@ -7,6 +9,7 @@ from agents.humans.human import Human, HumanAppearance
 from agents.robot_agent import RobotAgent
 from trajectory.trajectory import SystemConfig, Trajectory
 from utils.utils import color_text, euclidean_dist2, to_json_type
+from matplotlib import pyplot
 
 """ These are smaller "wrapper" classes that are visible by other
 gen_agents/humans and saved during state deepcopies
@@ -94,6 +97,92 @@ class AgentState:
     def get_pos3(self) -> np.ndarray:
         return self.get_current_config().position_and_heading_nk3(squeeze=True)
 
+    def render(self, ax: pyplot.Axes, p: DotMap) -> None:
+        # get number of pixels-per-meter based off the ax plot space
+        img_scale = ax.transData.transform((0, 1)) - ax.transData.transform((0, 0))
+        ppm: int = int(img_scale[1])  # pixels per meter off image scale
+        ms: float = self.radius * ppm  # markersize
+        x, y, th = self.current_config.position_and_heading_nk3(squeeze=True)
+        traj_col = p.traj_col if p.traj_col else self.color  # for overwriting
+        start_pos3 = self.start_config.position_and_heading_nk3(squeeze=True)
+        goal_pos3 = self.goal_config.position_and_heading_nk3(squeeze=True)
+        start_x, start_y, start_th = start_pos3
+        goal_x, goal_y, goal_th = goal_pos3
+
+        # draw trajectory
+        if p.plot_trajectory and self.trajectory is not None:
+            self.trajectory.render(
+                ax,
+                freq=1,
+                color=traj_col,
+                alpha=p.traj_alpha,
+                plot_quiver=False,
+                clip=p.max_traj_length,
+                linewidth=ppm / 8.2,
+                zorder=1,
+            )
+
+        # draw agent body
+        ax.plot(
+            x, y, p.normal_color, markersize=ms, label=p.label, alpha=p.alpha, zorder=2
+        )
+
+        # make the agent change colour when collided
+        if self.collided or self.collision_cooldown > 0:
+            ax.plot(x, y, p.collision_color, markersize=ms, alpha=p.alpha, zorder=2)
+            ax.plot(x, y, p.normal_color, markersize=ms * 0.4, label=None, zorder=3)
+
+        # draw start config
+        if p.plot_start:
+            ax.plot(
+                start_x,
+                start_y,
+                p.start_col,
+                markersize=ms,
+                label=p.start_label,
+                alpha=1,
+                zorder=2,
+            )
+
+        # draw goal config
+        if p.plot_goal:
+            ax.plot(
+                goal_x,
+                goal_y,
+                p.goal_col,
+                markersize=2 * ms,
+                marker="*",
+                label=p.goal_label,
+                alpha=1,
+                zorder=1,
+            )
+
+        # draw quiver (heading arrow)
+        if p.plot_quiver:
+
+            s = 0.5  # scale
+
+            def plot_quiver(xpos: float, ypos: float, theta: float) -> None:
+                ax.quiver(
+                    xpos,
+                    ypos,
+                    s * np.cos(theta),
+                    s * np.sin(theta),
+                    scale=1,
+                    scale_units="xy",
+                    zorder=1,  # behind the agent body
+                )
+
+            plot_quiver(x, y, th)  # plot agent body quiver
+
+            # plot start quiver
+            if p.plot_start and start_pos3 is not None:
+                plot_quiver(start_x, start_y, start_th)
+
+            # plot goal quiver
+            if p.plot_goal and goal_pos3 is not None:
+                plot_quiver(goal_x, goal_y, goal_th)
+
     def to_json_type(self) -> Dict[str, str]:
         json_dict: Dict[str, str] = {}
         json_dict["name"] = self.name
@@ -142,7 +231,7 @@ class SimState:
         self,
         environment: Optional[Dict[str, float or int or np.ndarray]] = None,
         pedestrians: Optional[Dict[str, Agent]] = None,
-        robots: Dict[str, RobotAgent] = None,
+        robots: Optional[Dict[str, RobotAgent]] = None,
         sim_t: Optional[float] = None,
         wall_t: Optional[float] = None,
         delta_t: Optional[float] = None,
@@ -154,8 +243,8 @@ class SimState:
         self.environment: Dict[str, float or int or np.ndarray] = environment
         # no distinction between prerecorded and auto agents
         # new dict that the joystick will be sent
-        self.pedestrians: Dict[str, Agent] = pedestrians
-        self.robots: Dict[str, RobotAgent] = robots
+        self.pedestrians: Dict[str, AgentState] = pedestrians
+        self.robots: Dict[str, AgentState] = robots
         self.sim_t: float = sim_t
         self.wall_t: float = wall_t
         self.delta_t: float = delta_t
@@ -272,6 +361,85 @@ class SimState:
         for agent_name in json_str_dict.keys():
             agent_dict[agent_name] = AgentState.from_json(json_str_dict[agent_name])
         return agent_dict
+
+    def render(self, ax: pyplot.Axes, p: DotMap) -> None:
+        """NOTE: this only renders the topview (schematic mode)"""
+        """for the rgb & depth views we use the SocNavRenderer"""
+        # Compute the real_world extent (in meters) of the traversible
+        map_scale = self.environment["map_scale"]
+        traversible = self.environment["map_traversible"]
+        ax.set_xlim(0.0, traversible.shape[1] * map_scale)
+        ax.set_ylim(0.0, traversible.shape[0] * map_scale)
+        human_traversible = None
+        if "human_traversible" in self.environment:
+            assert p.render_3D
+            human_traversible = self.environment["human_traversible"]
+        extent = (
+            np.array([0.0, traversible.shape[1], 0.0, traversible.shape[0]]) * map_scale
+        )
+        # plot the map traversible
+        ax.imshow(
+            traversible, extent=extent, cmap="gray", vmin=-0.5, vmax=1.5, origin="lower"
+        )
+
+        if human_traversible is not None:  # plot human traversible
+            # NOTE: the human radius is only available given the openGL human modeling
+            # Plot the 5x5 meter human radius grid atop the environment traversible
+            alphas = np.empty(np.shape(human_traversible))
+            for y in range(human_traversible.shape[1]):
+                for x in range(human_traversible.shape[0]):
+                    alphas[x][y] = not (human_traversible[x][y])
+            ax.imshow(
+                human_traversible,
+                extent=extent,
+                cmap="autumn_r",
+                vmin=-0.5,
+                vmax=1.5,
+                origin="lower",
+                alpha=alphas,
+            )
+            # alphas = np.all(np.logical_not(human_traversible))
+
+        for human in self.pedestrians.values():
+            human.render(ax, p.human_render_params)
+
+        for robot in self.robots.values():
+            robot.render(ax, p.robot_render_params)
+
+        # plot a small tick in the bottom left corner of schematic showing
+        # how long a real world meter would be in the simulator world
+        if p.plot_meter_tick:
+            # plot other useful informational visuals in the topview
+            # such as the key to the length of a "meter" unit
+            plot_line_loc = self.environment["room_center"][:2] * 0.65
+            start = [0, 0] + plot_line_loc
+            end = [1, 0] + plot_line_loc
+            gather_xs = [start[0], end[0]]
+            gather_ys = [start[1], end[1]]
+            col = "k-"
+            h = 0.1  # height of the "ticks" of the key
+            ax.plot(gather_xs, gather_ys, col)  # main line
+            ax.plot(
+                [start[0], start[0]], [start[1] + h, start[1] - h], col
+            )  # tick left
+            ax.plot([end[0], end[0]], [end[1] + h, end[1] - h], col)  # tick right
+            if p.plot_quiver:
+                ax.text(
+                    0.5 * (start[0] + end[0]) - 0.2,
+                    start[1] + 0.5,
+                    "1m",
+                    fontsize=14,
+                    verticalalignment="top",
+                )
+        if len(self.robots) > 0 or len(self.pedestrians) > 0:
+            # ensure no duplicate labels occur
+            handles, labels = ax.get_legend_handles_labels()
+            unique = [
+                (h, l)
+                for i, (h, l) in enumerate(zip(handles, labels))
+                if l not in labels[:i]
+            ]
+            ax.legend(*zip(*unique))
 
 
 """BEGIN SimState utils"""

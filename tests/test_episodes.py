@@ -97,10 +97,9 @@ def test_episodes() -> None:
             )
             simulator.add_agents(new_prerecs)
 
-        # run simulation
+        # run simulation & render
         simulator.simulate()
-        # render the simulation result
-        simulator.render(r, None, filename=episode.name + "_obs")
+        simulator.render(r, filename=episode.name + "_obs")
 
     if not p.episode_params.without_robot:
         RobotAgent.close_robot_sockets()

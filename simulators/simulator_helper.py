@@ -10,14 +10,13 @@ from agents.agent import Agent
 from agents.humans.recorded_human import PrerecordedHuman
 from agents.robot_agent import RobotAgent
 from dotmap import DotMap
-from matplotlib import pyplot
 from obstacles.sbpd_map import SBPDMap
 from params.central_params import create_simulator_params
 from socnav.socnav_renderer import SocNavRenderer
-from utils.image_utils import render_rgb_and_depth, render_scene, save_to_gif
+from utils.image_utils import save_to_gif, render_socnav
 from utils.utils import color_text
 
-from simulators.sim_state import SimState
+from simulators.sim_state import SimState, AgentState
 
 
 class SimulatorHelper(object):
@@ -139,17 +138,17 @@ class SimulatorHelper(object):
             rendered_frames (int): how many frames have been generated so far
         """
         print(
-            "A:",
+            "Agents:",
             self.total_agents,
             "%sSuccess:" % (color_text["green"]),
             self.num_completed_agents,
-            "%sCollide:" % (color_text["red"]),
+            "%sCollision:" % (color_text["red"]),
             self.num_collided_agents,
-            "%sTime:" % (color_text["blue"]),
+            "%sTimout:" % (color_text["blue"]),
             self.num_timeout_agents,
             "%sFrames:" % (color_text["reset"]),
             rendered_frames,
-            "T = %.3f" % (self.sim_t),
+            "T=%.3fs" % (self.sim_t),
             "\r",
             end="",
         )
@@ -281,8 +280,8 @@ class SimulatorHelper(object):
     def render(
         self,
         renderer: SocNavRenderer,
-        camera_pose: np.ndarray,
-        filename: Optional[str] = "obs",
+        camera_pos_13: Optional[np.ndarray] = None,
+        filename: Optional[str] = "sim_render",
     ) -> None:
         """Generates a png frame for each world state saved in self.sim_states. Note, based off the
         render_3D options, the function will generate the frames in multiple separate processes to
@@ -337,17 +336,16 @@ class SimulatorHelper(object):
             for i in range(
                 int(np.ceil(len(sim_state_bank) / self.params.num_render_cores))
             ):
-                sim_idx = procID + i * self.params.num_render_cores
+                sim_idx: int = procID + i * self.params.num_render_cores
                 if sim_idx < len(sim_state_bank) and sim_state_skip[sim_idx] == 1:
-                    sim_state_idx = sim_state_bank[sim_idx]
-                    self.render_sim_state(
-                        mpl.pyplot,
-                        renderer,
-                        camera_pose,
-                        sim_state_idx,
-                        filename + str(sim_idx) + ".png",
+                    render_socnav(
+                        sim_state=sim_state_bank[sim_idx],
+                        renderer=renderer,
+                        params=self.params,
+                        camera_pos_13=camera_pos_13,
+                        filename=filename + str(sim_idx) + ".png",
                     )
-                    sim_label = sim_idx * fps_scale
+                    sim_label = int(sim_idx * fps_scale)
                     print(
                         "Rendered frames: %d out of %d, %.3f%% \r"
                         % (
@@ -366,10 +364,10 @@ class SimulatorHelper(object):
             # currently only runs in single-process mode, deepcopying has a problem
             if self.params.render_3D == False:
                 # optimized to use multiple processes
-                for p in range(self.params.num_render_cores - 1):
+                for p in range(1, self.params.num_render_cores):
                     gif_processes.append(
                         multiprocessing.Process(
-                            target=worker_render_sim_states, args=(p + 1,)
+                            target=worker_render_sim_states, args=(p,)
                         )
                     )
                 for proc in gif_processes:
@@ -391,72 +389,6 @@ class SimulatorHelper(object):
         # convert all the generated frames into a gif file
         self.save_frames_to_gif(filename=self.episode_params.name)
         return
-
-    def render_sim_state(
-        self,
-        plt: pyplot.plot,
-        renderer: SocNavRenderer,
-        camera_pose: np.ndarray,
-        state: SimState,
-        filename: str,
-    ) -> None:
-        """Converts a state into an image to be later converted to a gif movie
-        Args:
-            state (SimState): the state of the world to convert to an image
-            filename (str): the name of the resulting image (unindexed)
-        """
-        if self.robot:
-            robot = list(state.get_robots().values())[0]
-            camera_pos_13 = robot.get_current_config().position_and_heading_nk3(
-                squeeze=True
-            )
-        else:
-            robot = None
-            if camera_pose is not None:
-                camera_pos_13 = camera_pose
-            else:
-                camera_pos_13 = state.get_environment()["room_center"]
-
-        rgb_image_1mk3: np.ndarray = None
-        depth_image_1mk1: np.ndarray = None
-        # NOTE: 3d renderer can only be used with sequential plotting, much slower
-        if self.params.render_3D:
-            # TODO: Fix multiprocessing for properly deepcopied renderers
-            # only when rendering with opengl
-            assert "human_traversible" in state.get_environment()
-            # remove the "old" humans
-            renderer.remove_all_humans()
-            # update pedestrians humans
-            for a in state.get_pedestrians().values():
-                renderer.update_human(a)
-            # Update human traversible
-            # NOTE: this is technically not R-O since it modifies the human trav
-            # TODO: use a separate variable to keep SimStates as R-O
-            # state.get_environment()["human_traversible"] = \
-            #     renderer.get_human_traversible()
-            # compute the rgb and depth images
-            rgb_image_1mk3, depth_image_1mk1 = render_rgb_and_depth(
-                renderer,
-                np.array([camera_pos_13]),
-                state.get_environment()["map_scale"],
-                human_visible=True,
-            )
-        # plot the rbg, depth, and topview images if applicable
-        render_scene(
-            plt,
-            self.params,
-            rgb_image_1mk3,
-            depth_image_1mk1,
-            state.get_environment(),
-            camera_pos_13,
-            state.get_pedestrians(),
-            state.get_robots(),
-            state.get_sim_t(),
-            state.get_wall_t(),
-            filename,
-        )
-        # Delete state to save memory after frames are generated
-        del state
 
     def save_frames_to_gif(self, filename: Optional[str] = "") -> None:
         """Convert a directory full of png's to a gif movie
@@ -495,19 +427,16 @@ def sim_states_to_dataframe(sim) -> Tuple[pd.DataFrame, Dict[str, List[float]]]:
         all_states = sim
 
     cols = ["sim_step", "agent_name", "x", "y", "theta"]
-    agent_info = {}  # for now store radius, later store traversibles
-    df = pd.DataFrame(columns=cols)
+    agent_info: Dict[str, List[float]] = {}  # later store traversibles
+    df = pd.DataFrame(columns=cols, dtype=np.float64)
 
+    # TODO: vectorize!!
     for sim_step, sim_state in all_states.items():
         for agent_name, agent in sim_state.get_all_agents(True).items():
 
-            if not isinstance(agent, dict):
-                # traj = np.squeeze(agent.vehicle_trajectory.position_and_heading_nk3())
-                traj = np.squeeze(agent.current_config.position_and_heading_nk3())
-                agent_info[agent_name] = [agent.get_radius()]
-            else:
-                traj = np.squeeze(agent["trajectory"])
-                agent_info[agent_name] = [agent["radius"]]
+            assert isinstance(agent, AgentState)
+            traj = agent.current_config.position_and_heading_nk3(squeeze=True)
+            agent_info[agent_name] = [agent.radius]
 
             if len(traj) == 0:
                 continue
@@ -518,7 +447,9 @@ def sim_states_to_dataframe(sim) -> Tuple[pd.DataFrame, Dict[str, List[float]]]:
                 print(sim_step, traj)
                 raise NotImplementedError
 
-            x, y, th = traj
+            x: float = traj[0]
+            y: float = traj[1]
+            th: float = traj[2]
 
             df.loc[len(df)] = [sim_step, agent_name, x, y, th]
 
