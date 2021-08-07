@@ -541,6 +541,7 @@ class Trajectory(object):
         alpha: Optional[float] = 0,
         linewidth: Optional[float] = 4,
         clip: Optional[int] = 0,
+        marker: Optional[str] = "-",
         zorder: Optional[int] = 1,
     ) -> None:
         # use clip to only render the *last* "clip" numpoints of the trajectory
@@ -553,7 +554,7 @@ class Trajectory(object):
                 xs[::freq], ys[::freq], np.cos(thetas[::freq]), np.sin(thetas[::freq])
             )
         axs.plot(
-            xs, ys, "-", color=color, alpha=alpha, linewidth=linewidth, zorder=zorder
+            xs, ys, marker, color=color, alpha=alpha, linewidth=linewidth, zorder=zorder
         )
 
         if plot_heading:

@@ -25,15 +25,21 @@ user_config.read(os.path.join(cwd, "params/user_params.ini"))
 seed: int = user_config["socnav_params"].getint("seed")
 
 # read params file for default configurations of SocNavBench
-default_config = configparser.ConfigParser()
+default_config = configparser.ConfigParser(
+    allow_no_value=True, inline_comment_prefixes=";"
+)
 default_config.read(os.path.join(cwd, "params/.default_params.ini"))
 
 # read params file for episodes configs
-episodes_config = configparser.ConfigParser()
+episodes_config = configparser.ConfigParser(
+    allow_no_value=True, inline_comment_prefixes=";"
+)
 episodes_config.read(os.path.join(cwd, "params/episode_params_val.ini"))
 
 # read params file for prerecorded pedestrian datasets
-dataset_config = configparser.ConfigParser()
+dataset_config = configparser.ConfigParser(
+    allow_no_value=True, inline_comment_prefixes=";"
+)
 dataset_config.read(os.path.join(cwd, "params/dataset_params.ini"))
 
 
@@ -353,6 +359,9 @@ def create_agent_render_params(agent_type: Optional[str] = "human"):
     p.alpha = agent_render_p.getfloat("alpha")
     p.collision_color = agent_render_p.get("collision_color")
     p.plot_trajectory = agent_render_p.getboolean("plot_trajectory")
+    p.traj_freq = agent_render_p.getint("traj_freq")
+    p.traj_marker = agent_render_p.get("traj_marker")
+    p.traj_width = agent_render_p.getfloat("traj_width")
     p.max_traj_length = agent_render_p.getint("max_traj_length")
     p.plot_start = agent_render_p.getboolean("plot_start")
     p.start_label = agent_render_p.get("start_label")

@@ -113,12 +113,13 @@ class AgentState:
         if p.plot_trajectory and self.trajectory is not None:
             self.trajectory.render(
                 ax,
-                freq=1,
+                freq=p.traj_freq,
                 color=traj_col,
                 alpha=p.traj_alpha,
                 plot_quiver=False,
                 clip=p.max_traj_length,
-                linewidth=ppm / 8.2,
+                marker=p.traj_marker,
+                linewidth=p.traj_width,
                 zorder=1,
             )
 

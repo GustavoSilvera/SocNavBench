@@ -122,6 +122,7 @@ def render_socnav(
         # TODO: Fix multiprocessing for properly deepcopied renderers
         # only when rendering with opengl
         assert "human_traversible" in sim_state.environment
+        renderer.remove_all_humans()
         # update pedestrians humans
         for a in sim_state.pedestrians.values():
             renderer.update_human(a)
