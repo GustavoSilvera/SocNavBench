@@ -578,10 +578,13 @@ class SwiftshaderRenderer():
         glBindBuffer(GL_ARRAY_BUFFER, vbo)
         glBufferData(GL_ARRAY_BUFFER, vvt.dtype.itemsize *
                      vvt.size, vvt, GL_STATIC_DRAW)
-        glVertexAttribPointer(self.egl_mapping['vertexs'], 3, GL_FLOAT, GL_FALSE,
-                              20, ctypes.c_void_p(0))
-        glVertexAttribPointer(self.egl_mapping['vertexs_tc'], 2, GL_FLOAT, GL_FALSE,
-                              20, ctypes.c_void_p(12))
+        try:
+            glVertexAttribPointer(self.egl_mapping['vertexs'], 3, GL_FLOAT, GL_FALSE,
+                                20, ctypes.c_void_p(0))
+            glVertexAttribPointer(self.egl_mapping['vertexs_tc'], 2, GL_FLOAT, GL_FALSE,
+                                20, ctypes.c_void_p(12))
+        except NameError:
+            pass
         glEnableVertexAttribArray(self.egl_mapping['vertexs'])
         glEnableVertexAttribArray(self.egl_mapping['vertexs_tc'])
         assert(glGetError() == GL_NO_ERROR)

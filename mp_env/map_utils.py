@@ -199,7 +199,7 @@ def add_human_to_traversible(map, robot_base, robot_height, robot_radius,
         human_xy_footprint_coordinates_n2, axis=1).max()
 
     # Expand the occupied space to account for the robot base
-    selem = morphology.disk(robot_radius / map.resolution)
+    selem = morphology.disk(robot_radius / (map.resolution / 50.0))
     thresh = create_building_params().building_thresh
     obstacle_free = morphology.binary_dilation(
         _fill_holes(num_obstcale_points > num_point_threshold, thresh), selem) != True

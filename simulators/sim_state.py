@@ -372,7 +372,7 @@ class SimState:
         ax.set_xlim(0.0, traversible.shape[1] * map_scale)
         ax.set_ylim(0.0, traversible.shape[0] * map_scale)
         human_traversible = None
-        if "human_traversible" in self.environment:
+        if "human_traversible" in self.environment and p.draw_human_traversible:
             assert p.render_3D
             human_traversible = self.environment["human_traversible"]
         extent = (

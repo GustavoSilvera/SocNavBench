@@ -377,6 +377,7 @@ def create_renderer_params(render_3d: bool) -> DotMap:
     p = DotMap()
     renderer_p = user_config["renderer_params"]
     p.render_3D = render_3d
+    p.draw_human_traversibles = renderer_p.getboolean("draw_human_traversible")
     p.plot_meter_tick = renderer_p.getboolean("plot_meter_tick")
     p.plot_quiver = renderer_p.getboolean("plot_quiver")
     p.human_render_params = create_agent_render_params("human")

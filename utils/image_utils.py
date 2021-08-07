@@ -45,14 +45,14 @@ def plot_scene_images(
     img_size: float = 10 * p.img_scale
     fig, axs = pyplot.subplots(1, len(plots), figsize=(len(plots) * img_size, img_size))
     title: str = "sim:{:.3f}s wall:{:.3f}s".format(sim_state.sim_t, sim_state.wall_t)
-    fig.suptitle(title, fontsize=20)
+    # fig.suptitle(title, fontsize=20)
     if isinstance(axs, pyplot.Axes):
         axs = [axs]  # when plotting a single plot, make sure it is still a list
     for i, ax in enumerate(axs):
         plot_name: ImageType = plots[i]
         if plot_name == ImageType.SCHEMATIC:
             """PLOT TOPVIEW (SCHEMATIC)"""
-            ax.set_title(plot_name, fontsize=14)
+            ax.set_title(str(plot_name) + " " + title, fontsize=14)
             ax.set_aspect("equal")
             sim_state.render(ax, p.render_params)
         elif plot_name == ImageType.RGB or plot_name == ImageType.DEPTH:
@@ -79,7 +79,7 @@ def plot_scene_images(
                 color_text["reset"],
             )
         touch(full_file_name)  # Just as the bash command
-    pyplot.subplots_adjust(top=0.85)  # for the suptitle
+    # pyplot.subplots_adjust(top=0.85)  # for the suptitle
     pyplot.tight_layout()
     fig.savefig(full_file_name, bbox_inches="tight", pad_inches=0)
     pyplot.close()

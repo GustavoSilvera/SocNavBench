@@ -10,7 +10,7 @@ from mp_env.map_utils import (
 from agents.humans.human import Human, HumanAppearance
 from dotmap import DotMap
 from mp_env.map_utils import Foo
-from mp_env.render.swiftshader_renderer import Shape, HumanShape, SwiftshaderRenderer
+from mp_env.render.swiftshader_renderer import Shape, SwiftshaderRenderer
 
 
 class Building:
@@ -77,7 +77,7 @@ class Building:
         self.named_humans = set()
         self.individual_human_traversibles = {}
 
-    def set_r_obj(self, r_obj):
+    def set_r_obj(self, r_obj: SwiftshaderRenderer) -> None:
         self.r_obj = r_obj
 
     def load_building_into_scene(self, dedup_tbo: Optional[bool] = False) -> None:
