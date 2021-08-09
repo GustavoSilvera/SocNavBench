@@ -1,6 +1,6 @@
 import glob
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import imageio
 import numpy as np
@@ -176,53 +176,127 @@ def render_rgb_and_depth(
     return rgb_image_1mk3, depth_image_1mk1
 
 
+def save_to_gif_with_ffmpeg(
+    filename: str, IMAGES_DIR: str, fps: int, clean_files: Optional[bool] = False
+) -> bool:
+    try:
+        import subprocess
+
+        mp4_filename: str = "{}.mp4".format(filename)
+        gif_filename: str = "{}.gif".format(filename)
+        all_png_files: str = os.path.join(IMAGES_DIR, "*.png")
+        print("Rendering movie with ffmpeg -> mp4 -> gif")
+        ffmpeg_pngs_to_mp4: str = "ffmpeg {ow} {logs} {fps} {inputs} {mp4} {q} {out}".format(
+            ow="-y",  # force overwrite
+            logs="-hide_banner -loglevel error",  # ignore logs
+            fps="-framerate {}".format(fps),  # set framerate of resulting movie
+            inputs="-pattern_type glob -i '{}'".format(all_png_files),
+            mp4="-c:v mpeg4 -pix_fmt yuv420p",  # video codec
+            q="-qscale 0",  # decrease the quality by 0
+            out=mp4_filename,
+        )
+        os.chdir(IMAGES_DIR)  # make sure to go to the output dir
+        error_val = subprocess.call(ffmpeg_pngs_to_mp4, shell=True)
+        if error_val:
+            raise Exception("ffmpeg (png's -> mp4) error {}".format(error_val))
+        assert os.path.exists(os.path.join(IMAGES_DIR, mp4_filename))
+        print(
+            "{}Rendered mp4 at {}{}".format(
+                color_text["green"], mp4_filename, color_text["reset"]
+            )
+        )
+        # successfully rendered the mp4, now converting that to gif
+        # render gif
+        ffmpeg_mp4_to_gif: str = "ffmpeg {ow} {logs} {conversion}".format(
+            ow="-y",  # force overwrite
+            logs="-hide_banner -loglevel error",  # ignore logs
+            conversion="-i {} {}".format(mp4_filename, gif_filename),
+        )
+        error_val = subprocess.call(ffmpeg_mp4_to_gif, shell=True)
+        if error_val:
+            raise Exception("ffmpeg (mp4 -> gif) error {}".format(error_val))
+        assert os.path.exists(os.path.join(IMAGES_DIR, gif_filename))
+        print(
+            "{}Rendered gif at {}{}".format(
+                color_text["green"], gif_filename, color_text["reset"]
+            )
+        )
+        if clean_files and os.path.exists(os.path.join(IMAGES_DIR, mp4_filename)):
+            os.remove(os.path.join(IMAGES_DIR, mp4_filename))
+            print("Removed mp4 file")
+
+        # and we're done!
+        return True
+    except Exception as e:
+        print(
+            "{}Failed to use ffmpeg for gif creation. Defaulting to ImageIO. {}\nReason: {}".format(
+                color_text["red"], color_text["reset"], e
+            )
+        )
+        return save_to_gif_with_imageio(filename, IMAGES_DIR, fps)
+
+
+def save_to_gif_with_imageio(
+    filename: str, IMAGES_DIR: str, fps: float, clean_files: Optional[bool] = False
+) -> bool:
+    gif_filename: str = "{}.gif".format(filename)
+    files: List[str] = natural_sort(glob.glob(os.path.join(IMAGES_DIR, "*.png")))
+    with imageio.get_writer(gif_filename, mode="I", fps=fps) as writer:
+        for i, png_filename in enumerate(files):
+            try:
+                image: np.ndarray = imageio.imread(png_filename).astype(np.uint8)
+                writer.append_data(image)
+            except Exception as e:
+                print(
+                    "{}Unable to read file:{}{} Reason:{}".format(
+                        color_text["red"], png_filename, color_text["reset"], e
+                    )
+                )
+                print(
+                    "{}Try clearing the directory of old files and rerunning{}".format(
+                        color_text["yellow"], color_text["reset"]
+                    )
+                )
+                raise e
+            print(
+                "Movie progress: {}/{} ({:.2f}%)\r".format(
+                    i + 1, len(files), 100.0 * ((i + 1) / len(files))
+                ),
+                end="",
+            )
+        writer.close()
+    print()  # newline for carriage return print
+    print(
+        "{}Rendered gif at {}{}".format(
+            color_text["green"], gif_filename, color_text["reset"]
+        )
+    )
+    # Clearing remaining files to not affect next render
+    if clean_files:
+        for f in files:
+            os.remove(f)
+        print("%sCleaned directory" % color_text["green"], color_text["reset"])
+    return True
+
+
 def save_to_gif(
     IMAGES_DIR: str,
-    duration: Optional[float] = 0.05,
-    gif_filename: Optional[str] = "movie",
+    fps: Optional[float] = 20.0,
+    filename: Optional[str] = "movie",
     clear_old_files: Optional[bool] = True,
-    verbose: Optional[bool] = False,
+    use_ffmpeg: Optional[bool] = True,
+    clear_mp4: Optional[bool] = False,
 ) -> None:
     """Takes the image directory and naturally sorts the images into a singular movie.gif"""
-    images = []
     if not os.path.exists(IMAGES_DIR):
-        print(
+        raise Exception(
             color_text["red"],
             "ERROR: Failed to find image directory at",
             IMAGES_DIR,
             color_text["reset"],
         )
-        exit(1)  # Failure condition
-    files: List[str] = natural_sort(glob.glob(os.path.join(IMAGES_DIR, "*.png")))
-    num_images = len(files)
-    for i, filename in enumerate(files):
-        if verbose:
-            print("appending", filename)
-        try:
-            images.append(imageio.imread(filename))
-        except Exception as e:
-            print(
-                "{}Unable to read file:{}{} Reason:{}".format(
-                    color_text["red"], filename, color_text["reset"], e
-                )
-            )
-            print("Try clearing the directory of old files and rerunning")
-            raise e
-        print(
-            "Movie progress: %d out of %d, %.3f%% \r"
-            % (i + 1, num_images, 100.0 * ((i + 1) / num_images)),
-            end="",
-        )
-    print()
-    output_location = os.path.join(IMAGES_DIR, gif_filename + ".gif")
-    kargs = {"duration": duration}  # 1/fps
-    imageio.mimsave(output_location, images, "GIF", **kargs)
-    print(
-        "%sRendered gif at" % color_text["green"], output_location, color_text["reset"]
-    )
-    # Clearing remaining files to not affect next render
-    if clear_old_files:
-        for f in files:
-            os.remove(f)
-        print("%sCleaned directory" % color_text["green"], color_text["reset"])
-
+    # in the future we may consider using https://github.com/kkroening/ffmpeg-python
+    if use_ffmpeg:
+        save_to_gif_with_ffmpeg(filename, IMAGES_DIR, fps, clear_mp4)
+    else:
+        save_to_gif_with_imageio(filename, IMAGES_DIR, fps, clear_old_files)

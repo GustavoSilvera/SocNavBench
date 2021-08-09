@@ -329,26 +329,26 @@ class SimulatorHelper(object):
 
         start_time = float(time.time())
 
+        # currently only single-threaded mode is supported for 3d rendering
+        num_cores: int = self.params.num_render_cores if self.params.render_3D else 1
+
         def worker_render_sim_states(procID: int) -> None:
             # runs an interleaved loop across sim_states in the bank
             mpl.use("Agg")  # for rendering without a display
             mpl.font_manager._get_font.cache_clear()
-            for i in range(
-                int(np.ceil(len(sim_state_bank) / self.params.num_render_cores))
-            ):
-                sim_idx: int = procID + i * self.params.num_render_cores
+            for i in range(int(np.ceil(len(sim_state_bank) / num_cores))):
+                sim_idx: int = procID + i * num_cores
                 if sim_idx < len(sim_state_bank) and sim_state_skip[sim_idx] == 1:
                     render_socnav(
                         sim_state=sim_state_bank[sim_idx],
                         renderer=renderer,
                         params=self.params,
                         camera_pos_13=camera_pos_13,
-                        filename=filename + str(sim_idx) + ".png",
+                        filename="{}_obs{:03d}.png".format(filename, sim_idx),
                     )
                     sim_label = int(sim_idx * fps_scale)
                     print(
-                        "Rendered frames: %d out of %d, %.3f%% \r"
-                        % (
+                        "Rendered frames: {}/{} ({:.2f})%\r".format(
                             sim_label,
                             num_frames,
                             100.0 * min(1, sim_label / num_frames),
@@ -356,7 +356,7 @@ class SimulatorHelper(object):
                         sep=" ",
                         end="",
                         flush=True,
-                    )
+                    )  # inline print
 
         gif_processes: List[multiprocessing.Process] = []
         if self.params.num_render_cores > 1:
@@ -381,9 +381,10 @@ class SimulatorHelper(object):
             proc.join()
         time_end = float(time.time())
         print(
-            "Rendered frames: %d out of %d, %.3f%%\n"
-            "Finished rendering in %.3fs"
-            % (num_frames, num_frames, 100.0, (time_end - start_time))
+            "Rendered frames: {}/{} ({:.2f})%\n"
+            "Finished rendering in {:.2f}s".format(
+                num_frames, num_frames, 100.0, (time_end - start_time)
+            )
         )  # make sure it says 100% at the end
 
         # convert all the generated frames into a gif file
@@ -405,7 +406,7 @@ class SimulatorHelper(object):
         save_to_gif(
             self.params.output_directory,
             duration,
-            gif_filename=gif_filename,
+            filename=gif_filename,
             clear_old_files=self.params.clear_files,
         )
 
