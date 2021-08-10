@@ -12,6 +12,7 @@ from mp_env.mp_env import Building
 from sbpd.sbpd import StanfordBuildingParserDataset, get_dataset
 from utils import depth_utils as du
 from utils.utils import mkdir_if_missing
+from simulators.sim_state import AgentState
 
 
 class SocNavRenderer:
@@ -169,7 +170,7 @@ class SocNavRenderer:
         for name, _ in list(self.humans.items()):
             self.remove_human(name)
 
-    def update_human(self, human: Human) -> None:
+    def update_human(self, human: AgentState) -> None:
         """
         Updates an existing human within a building 
         """
@@ -177,6 +178,14 @@ class SocNavRenderer:
             self.humans[human.get_name()] = human
             self.building.update_human(human)
             self.human_traversible = self.building.human_traversible
+
+    def update_bulk_humans(self, humans: List[AgentState]) -> None:
+        # faster in batches
+        if self.p.building_params.load_meshes:
+            for human in humans:
+                self.humans[human.get_name()] = human
+            self.building.update_bulk_humans(humans)
+        self.human_traversible = self.building.human_traversible
 
     def _get_rgb_image(
         self, starts_n2: np.ndarray, thetas_n1: np.ndarray, human_visible: bool

@@ -169,50 +169,48 @@ def add_human_to_traversible(map, robot_base, robot_height, robot_radius,
     num_obstcale_points = np.zeros((map.size[1], map.size[0]))
     num_points = np.zeros((map.size[1], map.size[0]))
 
-    # One Shape
-    assert(len(shapess) == 1)
-    shapes = shapess[0]
+    # Potentially many shapes
+    for shapes in shapess:
+        # One Mesh
+        assert(shapes.get_number_of_meshes() == 1)
+        j = 0
 
-    # One Mesh
-    assert(shapes.get_number_of_meshes() == 1)
-    j = 0
+        p, face_areas, face_idx = shapes.sample_points_on_face_of_shape(
+            j, n_samples_per_face, sc)
+        wt = face_areas[face_idx] / n_samples_per_face
 
-    p, face_areas, face_idx = shapes.sample_points_on_face_of_shape(
-        j, n_samples_per_face, sc)
-    wt = face_areas[face_idx] / n_samples_per_face
+        ind = np.all(np.concatenate(
+            (p[:, [2]] > robot_base,
+            p[:, [2]] < robot_base + robot_height), axis=1), axis=1)
+        num_obstcale_points += _project_to_map(map, p[ind, :], wt[ind])
 
-    ind = np.all(np.concatenate(
-        (p[:, [2]] > robot_base,
-         p[:, [2]] < robot_base + robot_height), axis=1), axis=1)
-    num_obstcale_points += _project_to_map(map, p[ind, :], wt[ind])
+        ind = np.all(np.concatenate(
+            (p[:, [2]] > valid_min,
+            p[:, [2]] < valid_max), axis=1), axis=1)
+        num_points += _project_to_map(map, p[ind, :], wt[ind])
 
-    ind = np.all(np.concatenate(
-        (p[:, [2]] > valid_min,
-         p[:, [2]] < valid_max), axis=1), axis=1)
-    num_points += _project_to_map(map, p[ind, :], wt[ind])
+        # Compute the radius of the human footprint (without augmenting by the robot base)
+        human_footprint_coordinates_n3 = p[ind, :] / sc
+        human_xy_footprint_coordinates_n2 = (
+            human_footprint_coordinates_n3[:, :2] - human_xy_center_2[None])
+        human_radius = np.linalg.norm(
+            human_xy_footprint_coordinates_n2, axis=1).max()
 
-    # Compute the radius of the human footprint (without augmenting by the robot base)
-    human_footprint_coordinates_n3 = p[ind, :] / sc
-    human_xy_footprint_coordinates_n2 = (
-        human_footprint_coordinates_n3[:, :2] - human_xy_center_2[None])
-    human_radius = np.linalg.norm(
-        human_xy_footprint_coordinates_n2, axis=1).max()
+        # Expand the occupied space to account for the robot base
+        selem = morphology.disk(robot_radius / (map.resolution / 50.0))
+        thresh = create_building_params().building_thresh
+        obstacle_free = morphology.binary_dilation(
+            _fill_holes(num_obstcale_points > num_point_threshold, thresh), selem) != True
 
-    # Expand the occupied space to account for the robot base
-    selem = morphology.disk(robot_radius / (map.resolution / 50.0))
-    thresh = create_building_params().building_thresh
-    obstacle_free = morphology.binary_dilation(
-        _fill_holes(num_obstcale_points > num_point_threshold, thresh), selem) != True
+        # Combine the occupancy information from the static map
+        # and the human
+        traversible = np.stack([map._traversible, obstacle_free], axis=2)
+        traversible = np.all(traversible, axis=2)
 
-    # Combine the occupancy information from the static map
-    # and the human
-    traversible = np.stack([map._traversible, obstacle_free], axis=2)
-    traversible = np.all(traversible, axis=2)
-
-    map.traversible = traversible
-    map._human_traversible = obstacle_free * 1.
-    map._human_radius = human_radius
-    map.human_xy_footprint_coordinates_n2 = human_xy_footprint_coordinates_n2
+        map.traversible = traversible
+        map._human_traversible = obstacle_free * 1.
+        map._human_radius = human_radius
+        map.human_xy_footprint_coordinates_n2 = human_xy_footprint_coordinates_n2
     return map
 
 

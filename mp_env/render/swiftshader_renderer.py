@@ -617,10 +617,9 @@ class SwiftshaderRenderer():
     def load_shapes(self, shapes, dedup_tbo=False, allow_repeat_humans=False):
         entity_ids = []
         dedup_dict = {}
-        for i, shape in enumerate(shapes):
+        for shape in shapes:
             for j in range(len(shape.meshes)):
-                # add i for indication of which human
-                name = shape.meshes[j].name + str(i)
+                name:str = shape.meshes[j].name # already includes human name
                 # if not (allow_repeat_humans and 'human' in name):
                 #    assert name not in entities, '{:s} entity already exists.'.format(name)
                 if shape.materials[j][0] in dedup_dict and dedup_tbo:

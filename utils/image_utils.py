@@ -124,8 +124,10 @@ def render_socnav(
         assert "human_traversible" in sim_state.environment
         renderer.remove_all_humans()
         # update pedestrians humans
-        for a in sim_state.pedestrians.values():
-            renderer.update_human(a)
+        renderer.update_bulk_humans(list(sim_state.pedestrians.values()))
+        # renderer.load_bulk_humans
+        # for a in sim_state.pedestrians.values():
+        #     renderer.update_human(a)
         # Update human traversible
         # NOTE: this is technically not R-O since it modifies the human trav
         # TODO: use a separate variable to keep SimStates as R-O
@@ -177,7 +179,11 @@ def render_rgb_and_depth(
 
 
 def save_to_gif_with_ffmpeg(
-    filename: str, IMAGES_DIR: str, fps: int, clean_files: Optional[bool] = False
+    filename: str,
+    IMAGES_DIR: str,
+    fps: int,
+    clean_mp4: Optional[bool] = False,
+    clean_pngs: Optional[bool] = False,
 ) -> bool:
     try:
         import subprocess
@@ -221,7 +227,7 @@ def save_to_gif_with_ffmpeg(
                 color_text["green"], gif_filename, color_text["reset"]
             )
         )
-        if clean_files and os.path.exists(os.path.join(IMAGES_DIR, mp4_filename)):
+        if clean_mp4 and os.path.exists(os.path.join(IMAGES_DIR, mp4_filename)):
             os.remove(os.path.join(IMAGES_DIR, mp4_filename))
             print("Removed mp4 file")
 
@@ -233,7 +239,7 @@ def save_to_gif_with_ffmpeg(
                 color_text["red"], color_text["reset"], e
             )
         )
-        return save_to_gif_with_imageio(filename, IMAGES_DIR, fps)
+        return save_to_gif_with_imageio(filename, IMAGES_DIR, fps, clean_pngs)
 
 
 def save_to_gif_with_imageio(
@@ -272,10 +278,6 @@ def save_to_gif_with_imageio(
         )
     )
     # Clearing remaining files to not affect next render
-    if clean_files:
-        for f in files:
-            os.remove(f)
-        print("%sCleaned directory" % color_text["green"], color_text["reset"])
     return True
 
 
@@ -299,4 +301,11 @@ def save_to_gif(
     if use_ffmpeg:
         save_to_gif_with_ffmpeg(filename, IMAGES_DIR, fps, clear_mp4)
     else:
-        save_to_gif_with_imageio(filename, IMAGES_DIR, fps, clear_old_files)
+        save_to_gif_with_imageio(filename, IMAGES_DIR, fps)
+
+    files: List[str] = natural_sort(glob.glob(os.path.join(IMAGES_DIR, "*.png")))
+    if clear_old_files:
+        for f in files:
+            os.remove(f)
+        print("%sCleaned directory" % color_text["green"], color_text["reset"])
+

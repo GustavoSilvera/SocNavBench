@@ -298,9 +298,9 @@ class SimulatorHelper(object):
             return
 
         # Rendering movie
-        fps: float = (1.0 / self.dt) * fps_scale
+        fps: float = fps_scale / self.dt
         print(
-            "%sRendering movie with fps=%d%s"
+            "Rendering movie with %sfps=%d%s"
             % (color_text["orange"], fps, color_text["reset"])
         )
         num_states = len(self.sim_states)
@@ -330,7 +330,7 @@ class SimulatorHelper(object):
         start_time = float(time.time())
 
         # currently only single-threaded mode is supported for 3d rendering
-        num_cores: int = self.params.num_render_cores if self.params.render_3D else 1
+        num_cores: int = 1 if self.params.render_3D else self.params.num_render_cores
 
         def worker_render_sim_states(procID: int) -> None:
             # runs an interleaved loop across sim_states in the bank
@@ -388,27 +388,21 @@ class SimulatorHelper(object):
         )  # make sure it says 100% at the end
 
         # convert all the generated frames into a gif file
-        self.save_frames_to_gif(filename=self.episode_params.name)
-        return
-
-    def save_frames_to_gif(self, filename: Optional[str] = "") -> None:
-        """Convert a directory full of png's to a gif movie
-        NOTE: One can also save to mp4 using imageio-ffmpeg or this bash script:
+        """NOTE: One can also save to mp4 using imageio-ffmpeg or this bash script:
               "ffmpeg -r 10 -i simulate_obs%01d.png -vcodec mpeg4 -y movie.mp4"
         Args:
             clear_old_files (bool, optional): Whether or not to clear old image files. Defaults to True.
         """
         if self.params.fps_scale_down == 0 or not self.params.record_video:
             return
-        duration: float = self.dt * (1.0 / self.params.fps_scale_down)
-        # sequentially
-        gif_filename: str = "movie_%s" % filename
         save_to_gif(
             self.params.output_directory,
-            duration,
-            filename=gif_filename,
+            fps=fps,
+            filename="movie_{}".format(filename),
+            use_ffmpeg=True,  # TODO: move to params
             clear_old_files=self.params.clear_files,
         )
+        return
 
 
 """central sim - pandas utils"""

@@ -1,5 +1,5 @@
 from trajectory.trajectory import SystemConfig
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 import numpy as np
 from mp_env.map_utils import (
     make_map,
@@ -7,10 +7,11 @@ from mp_env.map_utils import (
     add_human_to_traversible,
     pick_largest_cc,
 )
-from agents.humans.human import Human, HumanAppearance
+from agents.humans.human import HumanAppearance
 from dotmap import DotMap
 from mp_env.map_utils import Foo
 from mp_env.render.swiftshader_renderer import Shape, SwiftshaderRenderer
+from simulators.sim_state import AgentState
 
 
 class Building:
@@ -151,9 +152,12 @@ class Building:
 
         return np.array([xy_offset_map[0], xy_offset_map[1], pos_3[2]])
 
+    def create_human_key(self, name: str) -> str:
+        return "human_{}".format(name)
+
     def load_human_into_scene(
         self,
-        human: Dict[str, Any],
+        human,  # technically an AgentState
         dedup_tbo: Optional[bool] = False,
         allow_repeat_humans: Optional[bool] = False,
     ) -> None:
@@ -161,59 +165,77 @@ class Building:
         Load a gendered human mesh with associated body shape, texture, and human_materials
         into a building at their current config and speed in the static building.
         """
-        # Add human to dictionary in building
-        human_appearance: HumanAppearance = human.get_appearance()
-        appearance_dataset = human_appearance.dataset  # StanfordBuildingParserDataset
-        current_config: SystemConfig = human.get_current_config()
-        name: str = human.get_name()
-        pos_3 = current_config.position_and_heading_nk3(squeeze=True)
-        speed = current_config.speed_nk1()
-        gender = human_appearance.get_gender()
-        human_materials = human_appearance.get_texture()
-        body_shape = human_appearance.get_shape()
-        rng = human_appearance.get_mesh_rng()
-        self.named_humans.add(name)
+        return self.load_bulk_humans_into_scene([human], dedup_tbo, allow_repeat_humans)
 
-        # Load the human mesh
-        shapess, center_pos_3, _ = appearance_dataset.load_random_human(
-            speed, gender, human_materials, body_shape, rng
-        )
+    def load_bulk_humans_into_scene(
+        self,
+        humans: List[AgentState],
+        dedup_tbo: Optional[bool] = False,
+        allow_repeat_humans: Optional[bool] = False,
+    ) -> None:
+        """loads many human meshes into the scene at once (SLOW)"""
+        all_human_shapes: List = []  # list of HumanShapes
+        for human in humans:
+            # Add human to dictionary in building
+            human_appearance: HumanAppearance = human.get_appearance()
+            # StanfordBuildingParserDataset
+            appearance_dataset = human_appearance.dataset
+            current_config: SystemConfig = human.get_current_config()
+            name: str = human.get_name()
+            pos_3 = current_config.position_and_heading_nk3(squeeze=True)
+            speed = current_config.speed_nk1()
+            gender = human_appearance.get_gender()
+            human_materials = human_appearance.get_texture()
+            body_shape = human_appearance.get_shape()
+            rng = human_appearance.get_mesh_rng()
+            self.named_humans.add(name)
 
-        # Make sure the human's feet are actually on the ground in SBPD
-        # (i.e. the minimum z coordinate is 0)
+            # Load the human mesh
+            shapess, center_pos_3, _ = appearance_dataset.load_random_human(
+                speed, gender, human_materials, body_shape, rng
+            )
+            assert len(shapess) == 1  # only loads a single human at a time
 
-        z_offset = shapess[0].meshes[0].vertices[:, 2].min()
-        shapess[0].meshes[0].vertices = np.concatenate(
-            [
-                shapess[0].meshes[0].vertices[:, :2],
-                shapess[0].meshes[0].vertices[:, 2:3] - z_offset,
-            ],
-            axis=1,
-        )
+            # Make sure the human's feet are actually on the ground in SBPD
+            # (i.e. the minimum z coordinate is 0)
 
-        # Make sure the human is in the canonical position
-        # The centerpoint between the left and right foot should be (0, 0)
-        # and the heading (average of the direction of the two feet) should be 0
-        shapess[0].meshes[0].vertices = self._transform_to_ego(
-            shapess[0].meshes[0].vertices, center_pos_3
-        )
-        human_ego_vertices = shapess[0].meshes[0].vertices * 1.0
+            z_offset = shapess[0].meshes[0].vertices[:, 2].min()
+            shapess[0].meshes[0].vertices = np.concatenate(
+                [
+                    shapess[0].meshes[0].vertices[:, :2],
+                    shapess[0].meshes[0].vertices[:, 2:3] - z_offset,
+                ],
+                axis=1,
+            )
 
-        # Move the human to the desired location
-        pos_3 = self._traversible_world_to_vertex_world(pos_3)
-        shapess[0].meshes[0].vertices = self._transform_to_world(
-            shapess[0].meshes[0].vertices, pos_3
-        )
-        shapess[0].meshes[0].name += name
+            # Make sure the human is in the canonical position
+            # The centerpoint between the left and right foot should be (0, 0)
+            # and the heading (average of the direction of the two feet) should be 0
+            shapess[0].meshes[0].vertices = self._transform_to_ego(
+                shapess[0].meshes[0].vertices, center_pos_3
+            )
+            human_ego_vertices = shapess[0].meshes[0].vertices * 1.0
+
+            # Move the human to the desired location
+            pos_3 = self._traversible_world_to_vertex_world(pos_3)
+            shapess[0].meshes[0].vertices = self._transform_to_world(
+                shapess[0].meshes[0].vertices, pos_3
+            )
+            shapess[0].meshes[0].name = self.create_human_key(name)
+
+            # append this shape to the list of all shapes
+            all_human_shapes.append(shapess[0])
+
+        # load all shapes at once
         self.renderer_entitiy_ids += self.r_obj.load_shapes(
-            shapess, dedup_tbo, allow_repeat_humans=allow_repeat_humans
+            all_human_shapes, dedup_tbo, allow_repeat_humans=allow_repeat_humans
         )
 
         # Update The Human Traversible
         if appearance_dataset.surreal_params.compute_human_traversible:
             map = self.map
             env = self.env
-            robot = self.robot
+            robot: DotMap = self.robot
             map = add_human_to_traversible(
                 map,
                 robot.base,
@@ -222,7 +244,7 @@ class Building:
                 env.valid_min,
                 env.valid_max,
                 env.num_point_threshold,
-                shapess=shapess,
+                shapess=all_human_shapes,
                 sc=100.0,
                 n_samples_per_face=env.n_samples_per_face,
                 human_xy_center_2=pos_3[:2],
@@ -256,41 +278,41 @@ class Building:
         self.r_obj.remove_human(name)
 
         # Remove the human from the list of loaded entities
-        human_entitiy_ids = list(
-            filter(lambda x: "human" in x, self.renderer_entitiy_ids)
-        )
-
-        for i in range(len(human_entitiy_ids)):
-            # Remove the human that matches the ID
-            if name in human_entitiy_ids[i]:
-                if False:  # TODO: make param for verbose printing
-                    print(" Deleted Human: " + name)
-                self.renderer_entitiy_ids.remove(human_entitiy_ids[i])
-                # only delete the one human, no need to keep traversing
-                break
+        key: str = self.create_human_key(name)
+        self.renderer_entitiy_ids.remove(key)
 
         # Update the traversible to be human free
         self.map.traversible = self.map._traversible
         self.traversible = self.map._traversible
-        self.individual_human_traversibles.pop(name)
+        if name in self.individual_human_traversibles:
+            self.individual_human_traversibles.pop(name)
         self.human_traversible = self.compute_human_traversible()
 
         # Remove from set
-        self.named_humans.remove(name)
+        if name in self.named_humans:
+            self.named_humans.remove(name)
 
-    def update_human(self, human: Human) -> None:
+    def update_human(self, human: AgentState) -> None:
         """
         Removes the previously loaded human mesh,
         and loads a new one with the same gender, texture
         and body shape at the updated position and speed
         """
-        # Remove the previous human
+        # Remove the previous human instance
         if human.get_name() in self.named_humans:
             self.remove_human(human.get_name())
 
         # Load a new human with the updated speed and position
         # same human appearance
         self.load_human_into_scene(human)
+
+    def update_bulk_humans(self, humans: List[AgentState]) -> None:
+        """ updating many humans at once """
+        # Remove the previous human
+        for human in humans:
+            if human.get_name() in self.named_humans:
+                self.remove_human(human.get_name())
+        self.load_bulk_humans_into_scene(humans)
 
     def to_actual_xyt(self, pqr: np.ndarray) -> np.ndarray:
         """Converts from node array to location array on the map."""

@@ -441,11 +441,7 @@ class Simulator(SimulatorHelper):
         """
         Add existing agents to the simulator
         """
+        if self.params.render_3D:
+            self.environment["human_traversible"] = self.r.building.human_traversible
         for agent in agents:
-            # TODO: make sure the renderer works
-            if self.params.render_3D:
-                self.r.add_human(agent)
-                self.environment["human_traversible"] = np.array(
-                    self.r.get_human_traversible()
-                )
             self.add_agent(agent)
