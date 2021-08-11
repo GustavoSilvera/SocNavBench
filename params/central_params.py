@@ -1,6 +1,7 @@
 import configparser
 import os
-from typing import List, Optional
+from ast import literal_eval
+from typing import Any, List, Optional
 
 import numpy as np
 from control_pipelines.control_pipeline_v0 import ControlPipelineV0
@@ -352,23 +353,24 @@ def create_simulator_params(verbose=True) -> DotMap:
 def create_agent_render_params(agent_type: Optional[str] = "human"):
     agent_render_p = user_config[agent_type + "_render_params"]
     p = DotMap()
-    p.label = agent_render_p.get("label")
-    p.traj_col = agent_render_p.get("traj_color")
-    p.traj_alpha = agent_render_p.getfloat("traj_alpha")
-    p.normal_color = agent_render_p.get("normal_color")
-    p.alpha = agent_render_p.getfloat("alpha")
-    p.collision_color = agent_render_p.get("collision_color")
-    p.plot_trajectory = agent_render_p.getboolean("plot_trajectory")
+
+    def safe_get(key: str) -> Any:
+        try:
+            return literal_eval(agent_render_p.get(key))
+        except Exception:
+            return None
+
+    p.body_normal_mpl_kwargs = safe_get("body_normal_mpl_kwargs")
+    p.body_collision_mpl_kwargs = safe_get("body_collision_mpl_kwargs")
+    p.collision_mini_dot_mpl_kwargs = safe_get("collision_mini_dot_mpl_kwargs")
+    p.traj_mpl_kwargs = safe_get("traj_mpl_kwargs")
+    p.start_mpl_kwargs = safe_get("start_mpl_kwargs")
+    p.goal_mpl_kwargs = safe_get("goal_mpl_kwargs")
     p.traj_freq = agent_render_p.getint("traj_freq")
-    p.traj_marker = agent_render_p.get("traj_marker")
-    p.traj_width = agent_render_p.getfloat("traj_width")
+    p.plot_trajectory = agent_render_p.getboolean("plot_trajectory")
     p.max_traj_length = agent_render_p.getint("max_traj_length")
     p.plot_start = agent_render_p.getboolean("plot_start")
-    p.start_label = agent_render_p.get("start_label")
-    p.start_col = agent_render_p.get("start_col")
     p.plot_goal = agent_render_p.getboolean("plot_goal")
-    p.goal_label = agent_render_p.get("goal_label")
-    p.goal_col = agent_render_p.get("goal_col")
     p.plot_quiver = agent_render_p.getboolean("plot_quiver")
     return p
 

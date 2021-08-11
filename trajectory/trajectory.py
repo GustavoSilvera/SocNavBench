@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -537,12 +537,8 @@ class Trajectory(object):
         plot_quiver: Optional[bool] = True,
         plot_heading: Optional[bool] = False,
         plot_velocity: Optional[bool] = False,
-        color: Optional[str] = "red",
-        alpha: Optional[float] = 0,
-        linewidth: Optional[float] = 4,
         clip: Optional[int] = 0,
-        marker: Optional[str] = "-",
-        zorder: Optional[int] = 1,
+        mpl_kwargs: Dict[str, Any] = {},
     ) -> None:
         # use clip to only render the *last* "clip" numpoints of the trajectory
         xs = self._position_nk2[batch_idx, -1 : -1 * clip : -1, 0]
@@ -553,9 +549,7 @@ class Trajectory(object):
             axs.quiver(
                 xs[::freq], ys[::freq], np.cos(thetas[::freq]), np.sin(thetas[::freq])
             )
-        axs.plot(
-            xs, ys, marker, color=color, alpha=alpha, linewidth=linewidth, zorder=zorder
-        )
+        axs.plot(xs, ys, **mpl_kwargs)
 
         if plot_heading:
             raise NotImplementedError

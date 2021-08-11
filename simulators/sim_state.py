@@ -1,6 +1,6 @@
 import json
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from dotmap import DotMap
 
 import numpy as np
@@ -98,12 +98,11 @@ class AgentState:
         return self.get_current_config().position_and_heading_nk3(squeeze=True)
 
     def render(self, ax: pyplot.Axes, p: DotMap) -> None:
-        # get number of pixels-per-meter based off the ax plot space
-        img_scale = ax.transData.transform((0, 1)) - ax.transData.transform((0, 0))
-        ppm: int = int(img_scale[1])  # pixels per meter off image scale
-        ms: float = self.radius * ppm  # markersize
         x, y, th = self.current_config.position_and_heading_nk3(squeeze=True)
-        traj_col = p.traj_col if p.traj_col else self.color  # for overwriting
+        traj_mpl_kwargs: Dict[str, Any] = p.traj_mpl_kwargs
+        if traj_mpl_kwargs["color"] is None:
+            # overwrite the colour with the agent's colour. Does not affect p.traj_mpl_kwargs
+            traj_mpl_kwargs = dict(traj_mpl_kwargs, **{"color": self.color})
         start_pos3 = self.start_config.position_and_heading_nk3(squeeze=True)
         goal_pos3 = self.goal_config.position_and_heading_nk3(squeeze=True)
         start_x, start_y, start_th = start_pos3
@@ -114,49 +113,28 @@ class AgentState:
             self.trajectory.render(
                 ax,
                 freq=p.traj_freq,
-                color=traj_col,
-                alpha=p.traj_alpha,
                 plot_quiver=False,
                 clip=p.max_traj_length,
-                marker=p.traj_marker,
-                linewidth=p.traj_width,
-                zorder=1,
+                mpl_kwargs=traj_mpl_kwargs,
             )
 
         # draw agent body
-        ax.plot(
-            x, y, p.normal_color, markersize=ms, label=p.label, alpha=p.alpha, zorder=2
-        )
+        ax.plot(x, y, **p.body_normal_mpl_kwargs)
 
-        # make the agent change colour when collided
-        if self.collided or self.collision_cooldown > 0:
-            ax.plot(x, y, p.collision_color, markersize=ms, alpha=p.alpha, zorder=2)
-            ax.plot(x, y, p.normal_color, markersize=ms * 0.4, label=None, zorder=3)
+        # make the agent change colour when collided (only if specified in params)
+        if p.body_collision_mpl_kwargs is not None and (
+            self.collided or self.collision_cooldown > 0
+        ):
+            ax.plot(x, y, **p.body_collision_mpl_kwargs)
+            ax.plot(x, y, **p.collision_mini_dot_mpl_kwargs)
 
         # draw start config
         if p.plot_start:
-            ax.plot(
-                start_x,
-                start_y,
-                p.start_col,
-                markersize=ms,
-                label=p.start_label,
-                alpha=1,
-                zorder=2,
-            )
+            ax.plot(start_x, start_y, **p.start_mpl_kwargs)
 
         # draw goal config
         if p.plot_goal:
-            ax.plot(
-                goal_x,
-                goal_y,
-                p.goal_col,
-                markersize=2 * ms,
-                marker="*",
-                label=p.goal_label,
-                alpha=1,
-                zorder=1,
-            )
+            ax.plot(goal_x, goal_y, **p.goal_mpl_kwargs)
 
         # draw quiver (heading arrow)
         if p.plot_quiver:
@@ -164,6 +142,7 @@ class AgentState:
             s = 0.5  # scale
 
             def plot_quiver(xpos: float, ypos: float, theta: float) -> None:
+                # TODO: add to kwargs params
                 ax.quiver(
                     xpos,
                     ypos,
