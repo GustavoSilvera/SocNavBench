@@ -359,12 +359,12 @@ class SimulatorHelper(object):
                     )  # inline print
 
         gif_processes: List[multiprocessing.Process] = []
-        if self.params.num_render_cores > 1:
+        if num_cores > 1:
             # TODO: fix multiprocessing with Swiftshader engine!
             # currently only runs in single-process mode, deepcopying has a problem
             if self.params.render_3D == False:
                 # optimized to use multiple processes
-                for p in range(1, self.params.num_render_cores):
+                for p in range(1, num_cores):
                     gif_processes.append(
                         multiprocessing.Process(
                             target=worker_render_sim_states, args=(p,)

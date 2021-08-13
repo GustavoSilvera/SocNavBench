@@ -80,6 +80,7 @@ def construct_environment(
     # which is a constant and list of traversibles respectively
     environment: Dict[str, float or np.ndarray] = {}
     environment["map_scale"] = float(dx_m)
+    environment["map_name"] = p.building_params.building_name
     environment["room_center"] = room_center
     # obstacle traversible / human traversible
     if p.render_3D:

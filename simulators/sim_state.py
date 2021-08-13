@@ -1,15 +1,16 @@
 import json
-
+import os
+from glob import glob
 from typing import Any, Dict, List, Optional
-from dotmap import DotMap
 
 import numpy as np
 from agents.agent import Agent
 from agents.humans.human import Human, HumanAppearance
 from agents.robot_agent import RobotAgent
-from trajectory.trajectory import SystemConfig, Trajectory
-from utils.utils import color_text, euclidean_dist2, to_json_type
+from dotmap import DotMap
 from matplotlib import pyplot
+from trajectory.trajectory import SystemConfig, Trajectory
+from utils.utils import color_text, euclidean_dist2, mkdir_if_missing, to_json_type
 
 """ These are smaller "wrapper" classes that are visible by other
 gen_agents/humans and saved during state deepcopies
@@ -103,10 +104,15 @@ class AgentState:
         if traj_mpl_kwargs["color"] is None:
             # overwrite the colour with the agent's colour. Does not affect p.traj_mpl_kwargs
             traj_mpl_kwargs = dict(traj_mpl_kwargs, **{"color": self.color})
-        start_pos3 = self.start_config.position_and_heading_nk3(squeeze=True)
-        goal_pos3 = self.goal_config.position_and_heading_nk3(squeeze=True)
-        start_x, start_y, start_th = start_pos3
-        goal_x, goal_y, goal_th = goal_pos3
+        # only load the start/goal configs if they are present in the agent
+        start_pos3 = None
+        goal_pos3 = None
+        if self.start_config is not None:
+            start_pos3 = self.start_config.position_and_heading_nk3(squeeze=True)
+            start_x, start_y, start_th = start_pos3
+        if self.goal_config is not None:
+            goal_pos3 = self.goal_config.position_and_heading_nk3(squeeze=True)
+            goal_x, goal_y, goal_th = goal_pos3
 
         # draw trajectory
         if p.plot_trajectory and self.trajectory is not None:
@@ -129,11 +135,11 @@ class AgentState:
             ax.plot(x, y, **p.collision_mini_dot_mpl_kwargs)
 
         # draw start config
-        if p.plot_start:
+        if p.plot_start and start_pos3 is not None:
             ax.plot(start_x, start_y, **p.start_mpl_kwargs)
 
         # draw goal config
-        if p.plot_goal:
+        if p.plot_goal and goal_pos3 is not None:
             ax.plot(goal_x, goal_y, **p.goal_mpl_kwargs)
 
         # draw quiver (heading arrow)
@@ -163,41 +169,66 @@ class AgentState:
             if p.plot_goal and goal_pos3 is not None:
                 plot_quiver(goal_x, goal_y, goal_th)
 
-    def to_json_type(self) -> Dict[str, str]:
+    def to_json_type(
+        self, omit_fields: Optional[List[str]] = ["trajectory",],
+    ) -> Dict[str, str]:
         json_dict: Dict[str, str] = {}
-        json_dict["name"] = self.name
-        json_dict["start_config"] = to_json_type(
-            self.get_start_config().position_and_heading_nk3(squeeze=True)
+        json_dict["name"] = self.name  # always keep name
+
+        def to_json_if_not_omitted(key: str, field: Any) -> None:
+            if key not in omit_fields:
+                json_dict[key] = to_json_type(field)
+
+        to_json_if_not_omitted(
+            "start_config",
+            self.get_start_config().position_and_heading_nk3(squeeze=True),
         )
-        json_dict["goal_config"] = to_json_type(
-            self.get_goal_config().position_and_heading_nk3(squeeze=True)
+        to_json_if_not_omitted(
+            "goal_config",
+            self.get_goal_config().position_and_heading_nk3(squeeze=True),
         )
-        json_dict["current_config"] = to_json_type(
-            self.get_current_config().position_and_heading_nk3(squeeze=True)
+        to_json_if_not_omitted(
+            "current_config",
+            self.get_current_config().position_and_heading_nk3(squeeze=True),
         )
-        json_dict["radius"] = self.radius
+        to_json_if_not_omitted(
+            "trajectory", self.get_trajectory().position_and_heading_nk3()
+        )
+        to_json_if_not_omitted("radius", self.radius)
         return json_dict
 
     @classmethod
     def from_json(cls, json_dict: Dict[str, str]):
         assert "name" in json_dict
         name: str = json_dict["name"]
-        start_config = None
-        goal_config = None
-        if "start_config" in json_dict:
-            start_config = SystemConfig.from_pos3(json_dict["start_config"])
-        if "goal_config" in json_dict:
-            goal_config = SystemConfig.from_pos3(json_dict["goal_config"])
-        assert "current_config" in json_dict
-        current_config = SystemConfig.from_pos3(json_dict["current_config"])
-        assert "radius" in json_dict
-        radius = json_dict["radius"]
+        start_config = (
+            SystemConfig.from_pos3(json_dict["start_config"])
+            if "start_config" in json_dict
+            else None
+        )
+        goal_config = (
+            SystemConfig.from_pos3(json_dict["goal_config"])
+            if "start_config" in json_dict
+            else None
+        )
+        current_config = (
+            SystemConfig.from_pos3(json_dict["current_config"])
+            if "current_config" in json_dict
+            else None
+        )
+        radius = json_dict["radius"] if "radius" in json_dict else None
+        trajectory = None
+        if "trajectory" in json_dict:
+            np_repr: np.ndarray = np.array(json_dict["trajectory"])
+            n, k, d = np_repr.shape
+            assert n == 1 and d == 3  # 3 dimensional (pos3) and only 1 trajectory
+            trajectory = Trajectory.from_pos3_array(np_repr)
         return cls(
             name=name,
             goal_config=goal_config,
             start_config=start_config,
             current_config=current_config,
-            trajectory=None,
+            trajectory=trajectory,
             collided=False,
             end_acting=False,
             collision_cooldown=-1,
@@ -287,23 +318,25 @@ class SimState:
         robot_on: Optional[bool] = True,
         send_metadata: Optional[bool] = False,
         termination_cause: Optional[str] = None,
+        full_export: Optional[bool] = False,
     ) -> str:
         json_dict: Dict[str, float or int or np.ndarray] = {}
         json_dict["robot_on"] = to_json_type(robot_on)
         if robot_on:  # only send the world if the robot is ON
-            robots_json: dict = to_json_type(self.get_robots())
-            if not send_metadata:
+            json_args = {"omit_fields": ["trajectory"]}  # don't save trajectory
+            if full_export:
+                json_args = {"omit_fields": [""]}  # don't omit anything, serialize all!
+                # NOTE: could add other configs here
+            elif not send_metadata:
+                json_args["omit_fields"].extend(["start_config", "goal_config"])
+            robots_json: dict = to_json_type(self.get_robots(), json_args)
+            if send_metadata:
                 # NOTE: the robot(s) send their start/goal posn iff sending metadata
-                for robot_name in robots_json:
-                    # don't need to send the robot start & goal since those are constant
-                    del robots_json[robot_name]["start_config"]
-                    del robots_json[robot_name]["goal_config"]
-            else:
                 # only include environment and episode name iff sending metadata
                 json_dict["environment"] = to_json_type(self.get_environment())
                 json_dict["episode_name"] = to_json_type(self.get_episode_name())
             # append other fields to the json dictionary
-            json_dict["pedestrians"] = to_json_type(self.get_pedestrians())
+            json_dict["pedestrians"] = to_json_type(self.get_pedestrians(), json_args)
             json_dict["robots"] = robots_json
             json_dict["delta_t"] = to_json_type(self.get_delta_t())
             json_dict["episode_max_time"] = to_json_type(self.get_episode_max_time())
@@ -311,7 +344,19 @@ class SimState:
             json_dict["termination_cause"] = to_json_type(termination_cause)
         # sim_state should always have time
         json_dict["sim_t"] = to_json_type(self.get_sim_t())
-        return json.dumps(json_dict, indent=1)
+        return json.dumps(json_dict)
+
+    def export_to_file(self, out_dir: Optional[str] = None) -> None:
+        json_repr: str = self.to_json(
+            robot_on=True, send_metadata=False, termination_cause=None, full_export=True
+        )
+        filename: str = "sim_state"
+        if out_dir is not None:
+            mkdir_if_missing(out_dir)
+            filename = os.path.join(out_dir, filename)
+        out_filename: str = "{}_{:.4f}.json".format(filename, self.sim_t)
+        with open(out_filename, "w") as out_file:
+            out_file.write(json_repr)
 
     @classmethod
     def from_json(cls, json_str: Dict[str, str or int or float]):
@@ -386,6 +431,10 @@ class SimState:
         for robot in self.robots.values():
             robot.render(ax, p.robot_render_params)
 
+        if len(p.draw_parallel_robots_by_algo) > 0:
+            # draw's robots from other parallel dimensions at this time
+            self.draw_variant_robots(ax, p)
+
         # plot a small tick in the bottom left corner of schematic showing
         # how long a real world meter would be in the simulator world
         if p.plot_meter_tick:
@@ -420,6 +469,39 @@ class SimState:
                 if l not in labels[:i]
             ]
             ax.legend(*zip(*unique))
+
+    def draw_variant_robots(self, ax: pyplot.Axes, p: DotMap) -> None:
+        this_map_name: str = self.environment["map_name"]
+        out_dir: str = p.output_directory
+        for algo in p.draw_parallel_robots_by_algo:
+            new_dir = os.path.join(out_dir, "..", "..", "test_{}".format(algo))
+            if not os.path.exists(new_dir):
+                # print("{}Failed to find directory {}{}".format(color_text["red"], new_dir, color_text["reset"]))
+                continue
+            # find directory with the same map name
+            all_dirs = glob(os.path.join(new_dir, "test_*"))
+            found_corresponding_map_dir = False
+            for map_dir in all_dirs:
+                if this_map_name.lower() in map_dir.lower():
+                    new_dir = os.path.join(new_dir, map_dir)
+                    found_corresponding_map_dir = True
+                    # only finds first one
+                    break
+            if found_corresponding_map_dir == False:
+                # print('{}Failed to find matching "{}" find directory at {}{}'.format(color_text["red"],this_map_name,new_dir,color_text["reset"]))
+                continue
+            # find sim_state_data directory
+            new_file: str = os.path.join(
+                new_dir, "sim_state_data", "sim_state_{:.4f}.json".format(self.sim_t),
+            )
+            if not os.path.exists(new_file):
+                # print("{}No sim state data saved in {}{}".format(color_text["red"], new_file, color_text["reset"]))
+                continue
+            with open(new_file, "r") as f:
+                matching_parallel_sim_state = SimState.from_json(json.load(f))
+                matching_parallel_sim_state.get_robot().render(
+                    ax, p.robot_render_params
+                )
 
 
 """BEGIN SimState utils"""

@@ -56,7 +56,7 @@ def create_params() -> DotMap:
         #    agents_start=[[8, 8, 0]], agents_end=[[17.5, 13, 0.]],
         agents_start=[],
         agents_end=[],
-        robot_start_goal=[[10, 3, 0], [15.5, 8, 0.7]],
+        robot_start_goal=[[2.5, 4, 0], [15.5, 8, 0.7]],
         max_time=30,
         write_episode_log=True,
     )

@@ -382,6 +382,9 @@ def create_renderer_params(render_3d: bool) -> DotMap:
     p.draw_human_traversibles = renderer_p.getboolean("draw_human_traversible")
     p.plot_meter_tick = renderer_p.getboolean("plot_meter_tick")
     p.plot_quiver = renderer_p.getboolean("plot_quiver")
+    p.draw_parallel_robots_by_algo = literal_eval(
+        renderer_p.get("draw_parallel_robots_by_algo")
+    )
     p.human_render_params = create_agent_render_params("human")
     p.robot_render_params = create_agent_render_params("robot")
     return p

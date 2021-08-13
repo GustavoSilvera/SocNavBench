@@ -152,6 +152,65 @@ class Trajectory(object):
             track_trajectory_acceleration=track_trajectory_acceleration,
         )
 
+    @classmethod
+    def from_pos3_array(cls, pos3_nk3: np.ndarray, dt: Optional[float] = 0.05):
+        """ Construct a Trajectory from an (n x 3) pos3 array of (x, y, theta) """
+        if not isinstance(pos3_nk3, np.ndarray):
+            pos3_nk3 = np.array(pos3_nk3)
+        n, k, dims = pos3_nk3.shape
+        assert dims == 3
+        if k == 0:
+            return Trajectory.empty(dt)
+        position_nk2 = pos3_nk3[:, :, :2].reshape(n, k, 2)
+        heading_nk1 = pos3_nk3[:, :, 2].reshape(n, k, 1)
+        speed_nk1 = (
+            np.sqrt(np.sum(np.diff(position_nk2, axis=1) ** 2, axis=2)) / dt
+        ).reshape(n, k - 1, 1)
+        acceleration_nk1 = (
+            np.sqrt(np.sum(np.diff(speed_nk1, axis=1) ** 2, axis=2)) / dt
+        ).reshape(n, k - 2, 1)
+        angular_speed_nk1 = (
+            np.sqrt(np.sum(np.diff(heading_nk1, axis=1) ** 2, axis=2)) / dt
+        ).reshape(n, k - 1, 1)
+        angular_acceleration_nk1 = (
+            np.sqrt(np.sum(np.diff(angular_speed_nk1, axis=1) ** 2, axis=2)) / dt
+        ).reshape(n, k - 2, 1)
+        return cls(
+            dt=dt,
+            n=n,
+            k=k,  # only for a single agent's trajectory
+            position_nk2=position_nk2,
+            speed_nk1=speed_nk1,
+            acceleration_nk1=acceleration_nk1,
+            heading_nk1=heading_nk1,
+            angular_speed_nk1=angular_speed_nk1,
+            angular_acceleration_nk1=angular_acceleration_nk1,
+            dtype=np.float32,
+            direct_init=True,
+            valid_horizons_n1=None,
+            track_trajectory_acceleration=True,
+            check_dimens=True,
+        )
+
+    @classmethod
+    def empty(cls, dt: Optional[float] = 0.05):
+        return cls(
+            dt=dt,
+            n=0,
+            k=1,  # only for a single agent's trajectory
+            position_nk2=np.array([[]]),
+            speed_nk1=np.array([]),
+            acceleration_nk1=np.array([]),
+            heading_nk1=np.array([]),
+            angular_speed_nk1=np.array([]),
+            angular_acceleration_nk1=np.array([]),
+            dtype=np.float32,
+            direct_init=True,
+            valid_horizons_n1=None,
+            track_trajectory_acceleration=True,
+            check_dimens=True,
+        )
+
     def update_valid_mask_nk(self) -> None:
         """Update this trajectories valid mask. The valid mask is a mask of 1's
         and 0's at the trajectories sampling interval where 1's represent
@@ -712,32 +771,3 @@ class SystemConfig(Trajectory):
             angular_acceleration_nk1,
             valid_horizons_n1=None,
         )
-
-    def render(
-        self,
-        ax: plt.axes,
-        batch_idx: Optional[int] = 0,
-        plot_quiver: Optional[bool] = False,
-        **kwargs
-    ) -> None:
-        pos_n13 = self.position_and_heading_nk3()
-        pos_3 = pos_n13[batch_idx, 0]
-        ax.plot(pos_3[0], pos_3[1], **kwargs)
-        if plot_quiver:
-            ax.quiver([pos_3[0]], [pos_3[1]], np.cos([pos_3[2]]), np.sin([pos_3[2]]))
-
-    def render_with_boundary(
-        self, ax: plt.axes, batch_idx: int, boundary_params: Dict[str, int], **kwargs
-    ) -> None:
-        self.render(ax, batch_idx, **kwargs)
-        if boundary_params["norm"] == 2:
-            center = self.position_nk2()[batch_idx, 0]
-            radius = boundary_params["cutoff"]
-            c = plt.Circle(center, radius, color=boundary_params["color"])
-            ax.add_artist(c)
-        else:
-            # assert(False)
-            center = self.position_nk2()[batch_idx, 0]
-            radius = boundary_params["cutoff"]
-            c = plt.Circle(center, radius, color=boundary_params["color"])
-            ax.add_artist(c)

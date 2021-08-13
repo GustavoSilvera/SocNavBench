@@ -38,7 +38,9 @@ def get_time_str() -> str:
     return time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 
-def to_json_type(elem: Any) -> str or int or float or list or dict:
+def to_json_type(
+    elem: Any, json_args: Optional[Dict[str, Any]] = {}
+) -> str or int or float or list or dict:
     """ Converts an element to a json serializable type. """
     if isinstance(elem, (int, str, bool, float)):
         return elem  # nothing to do. Primitive already
@@ -50,12 +52,12 @@ def to_json_type(elem: Any) -> str or int or float or list or dict:
         return elem.tolist()
     elif isinstance(elem, dict):
         # recursive for dictionaries within dictionaries
-        return dict_to_json(elem)
+        return dict_to_json(elem, json_args)
     elif isinstance(elem, list):
         # recursive for lists within lists
-        return list_to_json(elem)
+        return list_to_json(elem, json_args)
     elif hasattr(elem, "to_json_type") and callable(getattr(elem, "to_json_type")):
-        return elem.to_json_type()
+        return elem.to_json_type(**json_args)
     elif type(elem) is type:  # elem is a class
         return str(elem)
     # try a catch-all by converting to str
@@ -70,19 +72,23 @@ def to_json_type(elem: Any) -> str or int or float or list or dict:
         raise e
 
 
-def dict_to_json(param_dict: Dict[str, Any]) -> Dict[str, str or int or float]:
+def dict_to_json(
+    param_dict: Dict[str, Any], json_args: Optional[Dict[str, Any]] = {}
+) -> Dict[str, str or int or float]:
     """ Converts params_dict to a json serializable dict."""
     json_dict: Dict[str, str or int or float] = {}
     for key in param_dict.keys():
         # possibly recursive for dicts in dicts
-        json_dict[key] = to_json_type(param_dict[key])
+        json_dict[key] = to_json_type(param_dict[key], json_args)
     return json_dict
 
 
-def list_to_json(param_list: List[Any]) -> List[str or int or float or bool]:
+def list_to_json(
+    param_list: List[Any], json_args: Optional[Dict[str, Any]] = {}
+) -> List[str or int or float or bool]:
     """ Converts params_list to a json serializable list."""
     json_list: List[str or int or float or bool] = [
-        to_json_type(elem) for elem in param_list
+        to_json_type(elem, json_args) for elem in param_list
     ]
     return json_list
 
