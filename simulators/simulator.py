@@ -413,7 +413,12 @@ class Simulator(SimulatorHelper):
             "test_" + self.algo_name,
             self.episode_params.name,
         )
-        print("Robot powering on")
+        self.params.algo_name = self.algo_name
+        print(
+            "Robot powering on with algorithm {}{}{}".format(
+                color_text["orange"], self.algo_name, color_text["reset"]
+            )
+        )
         return r_listener_thread
 
     def decommission_robot(self, r_listener_thread: threading.Thread) -> None:

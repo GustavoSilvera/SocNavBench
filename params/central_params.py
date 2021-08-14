@@ -1,7 +1,7 @@
 import configparser
 import os
 from ast import literal_eval
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from control_pipelines.control_pipeline_v0 import ControlPipelineV0
@@ -382,9 +382,15 @@ def create_renderer_params(render_3d: bool) -> DotMap:
     p.draw_human_traversibles = renderer_p.getboolean("draw_human_traversible")
     p.plot_meter_tick = renderer_p.getboolean("plot_meter_tick")
     p.plot_quiver = renderer_p.getboolean("plot_quiver")
-    p.draw_parallel_robots_by_algo = literal_eval(
-        renderer_p.get("draw_parallel_robots_by_algo")
-    )
+    robot_kwargs = literal_eval(renderer_p.get("draw_parallel_robots_params_by_algo"))
+    p.draw_parallel_robots = renderer_p.getboolean("draw_parallel_robots")
+    p.draw_parallel_robots_params_by_algo = {}
+    for robot_algo in robot_kwargs:
+        new_kwargs: Dict[str, Dict[str, Any]] = robot_kwargs[robot_algo]
+        robot_algo_param: DotMap = create_agent_render_params("robot")
+        robot_algo_param.body_normal_mpl_kwargs = new_kwargs["body_kwargs"]
+        robot_algo_param.traj_mpl_kwargs = new_kwargs["traj_kwargs"]
+        p.draw_parallel_robots_params_by_algo[robot_algo] = robot_algo_param
     p.human_render_params = create_agent_render_params("human")
     p.robot_render_params = create_agent_render_params("robot")
     return p

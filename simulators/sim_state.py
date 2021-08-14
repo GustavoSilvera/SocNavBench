@@ -431,7 +431,7 @@ class SimState:
         for robot in self.robots.values():
             robot.render(ax, p.robot_render_params)
 
-        if len(p.draw_parallel_robots_by_algo) > 0:
+        if p.draw_parallel_robots and len(p.draw_parallel_robots_params_by_algo) > 0:
             # draw's robots from other parallel dimensions at this time
             self.draw_variant_robots(ax, p)
 
@@ -473,7 +473,7 @@ class SimState:
     def draw_variant_robots(self, ax: pyplot.Axes, p: DotMap) -> None:
         this_map_name: str = self.environment["map_name"]
         out_dir: str = p.output_directory
-        for algo in p.draw_parallel_robots_by_algo:
+        for algo in list(p.draw_parallel_robots_params_by_algo.keys()):
             new_dir = os.path.join(out_dir, "..", "..", "test_{}".format(algo))
             if not os.path.exists(new_dir):
                 # print("{}Failed to find directory {}{}".format(color_text["red"], new_dir, color_text["reset"]))
@@ -500,7 +500,7 @@ class SimState:
             with open(new_file, "r") as f:
                 matching_parallel_sim_state = SimState.from_json(json.load(f))
                 matching_parallel_sim_state.get_robot().render(
-                    ax, p.robot_render_params
+                    ax, p.draw_parallel_robots_params_by_algo[algo]
                 )
 
 
