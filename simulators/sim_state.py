@@ -435,8 +435,8 @@ class SimState:
         for human in self.pedestrians.values():
             human.render(ax, p.human_render_params)
 
-        # for robot in self.robots.values():
-        #     robot.render(ax, p.robot_render_params)
+        for robot in self.robots.values():
+            robot.render(ax, p.robot_render_params)
 
         if p.draw_parallel_robots and len(p.draw_parallel_robots_params_by_algo) > 0:
             # draw's robots from other parallel dimensions at this time
