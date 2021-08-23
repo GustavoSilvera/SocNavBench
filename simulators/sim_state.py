@@ -195,6 +195,8 @@ class AgentState:
             "trajectory", self.get_trajectory().position_and_heading_nk3()
         )
         to_json_if_not_omitted("radius", self.radius)
+        # no need to store 'collided' since collision cooldown contains more data
+        to_json_if_not_omitted("collision_cooldown", self.collision_cooldown)
         return json_dict
 
     @classmethod
@@ -217,6 +219,11 @@ class AgentState:
             else None
         )
         radius = json_dict["radius"] if "radius" in json_dict else None
+        coll_cooldown = (
+            json_dict["collision_cooldown"]
+            if "collision_cooldown" in json_dict
+            else None
+        )
         trajectory = None
         if "trajectory" in json_dict:
             np_repr: np.ndarray = np.array(json_dict["trajectory"])
@@ -229,9 +236,9 @@ class AgentState:
             start_config=start_config,
             current_config=current_config,
             trajectory=trajectory,
-            collided=False,
+            collided=bool(coll_cooldown > 0) if coll_cooldown is not None else False,
             end_acting=False,
-            collision_cooldown=-1,
+            collision_cooldown=coll_cooldown,
             radius=radius,
             color=None,
         )
@@ -428,12 +435,12 @@ class SimState:
         for human in self.pedestrians.values():
             human.render(ax, p.human_render_params)
 
-        for robot in self.robots.values():
-            robot.render(ax, p.robot_render_params)
+        # for robot in self.robots.values():
+        #     robot.render(ax, p.robot_render_params)
 
         if p.draw_parallel_robots and len(p.draw_parallel_robots_params_by_algo) > 0:
             # draw's robots from other parallel dimensions at this time
-            self.draw_variant_robots(ax, p)
+            self.draw_variants(ax, p)
 
         # plot a small tick in the bottom left corner of schematic showing
         # how long a real world meter would be in the simulator world
@@ -468,9 +475,26 @@ class SimState:
                 for i, (h, l) in enumerate(zip(handles, labels))
                 if l not in labels[:i]
             ]
-            ax.legend(*zip(*unique))
+            legend_order: Dict[str, int] = {
+                "Pedestrian": 0,
+                "Robot Start": 1,
+                "Robot Goal": 2,
+                # anything else is arbitrary
+            }
+            # unique is a list of [(line2d, str), (line2d, str), ...]
+            # where the str is the label (eg. "Pedestrian")
+            ax.legend(
+                *zip(
+                    *sorted(
+                        unique,
+                        key=lambda k: legend_order[k[1]]
+                        if k[1] in legend_order
+                        else max(legend_order.values()) + 1,
+                    )
+                )
+            )
 
-    def draw_variant_robots(self, ax: pyplot.Axes, p: DotMap) -> None:
+    def draw_variants(self, ax: pyplot.Axes, p: DotMap) -> None:
         this_map_name: str = self.environment["map_name"]
         out_dir: str = p.output_directory
         for algo in list(p.draw_parallel_robots_params_by_algo.keys()):
@@ -502,6 +526,12 @@ class SimState:
                 matching_parallel_sim_state.get_robot().render(
                     ax, p.draw_parallel_robots_params_by_algo[algo]
                 )
+                for pedestrian in matching_parallel_sim_state.pedestrians.values():
+                    if (
+                        pedestrian.collision_cooldown is not None
+                        and pedestrian.collision_cooldown > 0
+                    ):
+                        pedestrian.render(ax, p.human_render_params)
 
 
 """BEGIN SimState utils"""
