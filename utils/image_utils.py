@@ -201,6 +201,7 @@ def save_to_gif_with_ffmpeg(
             q="-qscale 0",  # decrease the quality by 0
             out=mp4_filename,
         )
+        og_dir: str = os.getcwd()  # make sure to return to this directory after rendering
         os.chdir(IMAGES_DIR)  # make sure to go to the output dir
         error_val = subprocess.call(ffmpeg_pngs_to_mp4, shell=True)
         if error_val:
@@ -231,6 +232,7 @@ def save_to_gif_with_ffmpeg(
             os.remove(os.path.join(IMAGES_DIR, mp4_filename))
             print("Removed mp4 file")
 
+        os.chdir(og_dir)
         # and we're done!
         return True
     except Exception as e:
