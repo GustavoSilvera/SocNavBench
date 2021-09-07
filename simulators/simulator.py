@@ -43,13 +43,8 @@ class Simulator(SimulatorHelper):
         # init Simulator implementation
         self.episode_params: DotMap = episode_params
         # output directory is updated again if there is a robot (and algorithm) in the simulator
-        self.params.output_directory = os.path.join(
-            self.params.socnav_params.socnav_dir,
-            "tests/socnav/",
-            "test_" + self.algo_name,
-            self.episode_params.name,
-        )
-        self.params.render_params.output_directory = self.params.output_directory
+        self.params.output_directory = None
+        self.params.render_params.output_directory = None
         self.obstacle_map: SBPDMap = self.init_obstacle_map(renderer)
         self.r: SocNavRenderer = renderer
 
@@ -211,9 +206,10 @@ class Simulator(SimulatorHelper):
         # Save current state to a class dictionary indexed by simulator time
         sim_t_step: int = round(self.sim_t / self.dt)
         self.sim_states[sim_t_step] = current_state
-        current_state.export_to_file(
-            out_dir=os.path.join(self.params.output_directory, "sim_state_data")
-        )
+        if self.algo_name is not None:
+            current_state.export_to_file(
+                out_dir=os.path.join(self.params.output_directory, "sim_state_data")
+            )
         # debug prints
         return current_state
 
@@ -413,6 +409,7 @@ class Simulator(SimulatorHelper):
             "test_" + self.algo_name,
             self.episode_params.name,
         )
+        self.params.render_params.output_directory = self.params.output_directory
         self.params.algo_name = self.algo_name
         print(
             "Robot powering on with algorithm {}{}{}".format(

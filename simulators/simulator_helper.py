@@ -34,7 +34,7 @@ class SimulatorHelper(object):
         self.params: DotMap = create_simulator_params(verbose)
         self.episode_params: DotMap = None
         # by default there is no robot (or algorithm)
-        self.algo_name: str = "lite"
+        self.algo_name: Optional[str] = None
         self.obstacle_map: SBPDMap = None
         # keep track of all agents in dictionary with names as the key
         self.agents: Dict[str, Agent] = {}

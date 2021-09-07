@@ -30,6 +30,7 @@ class AgentState:
         collided: bool = False,
         end_acting: bool = False,
         collision_cooldown: int = -1,
+        last_collision_t: Optional[float] = None,
         radius: int = 0,
         color: str = None,
     ):
@@ -43,6 +44,7 @@ class AgentState:
         self.collided: bool = collided
         self.end_acting: bool = end_acting
         self.collision_cooldown: int = collision_cooldown
+        self.last_collision_t: float = last_collision_t
         self.radius: float = radius
         self.color: str = color
 
@@ -61,6 +63,7 @@ class AgentState:
             collided=a.get_collided(),
             end_acting=a.get_end_acting(),
             collision_cooldown=a.get_collision_cooldown(),
+            last_collision_t=a.last_collision_t,
             radius=a.get_radius(),
             color=a.get_color(),
         )
@@ -197,6 +200,7 @@ class AgentState:
         to_json_if_not_omitted("radius", self.radius)
         # no need to store 'collided' since collision cooldown contains more data
         to_json_if_not_omitted("collision_cooldown", self.collision_cooldown)
+        to_json_if_not_omitted("last_collision_t", self.last_collision_t)
         return json_dict
 
     @classmethod
@@ -224,6 +228,9 @@ class AgentState:
             if "collision_cooldown" in json_dict
             else None
         )
+        last_collision_t = (
+            json_dict["last_collision_t"] if "last_collision_t" in json_dict else None
+        )
         trajectory = None
         if "trajectory" in json_dict:
             np_repr: np.ndarray = np.array(json_dict["trajectory"])
@@ -239,6 +246,7 @@ class AgentState:
             collided=bool(coll_cooldown > 0) if coll_cooldown is not None else False,
             end_acting=False,
             collision_cooldown=coll_cooldown,
+            last_collision_t=last_collision_t,
             radius=radius,
             color=None,
         )
@@ -435,13 +443,12 @@ class SimState:
         for human in self.pedestrians.values():
             human.render(ax, p.human_render_params)
 
-        for robot in self.robots.values():
-            robot.render(ax, p.robot_render_params)
-
         if p.draw_parallel_robots and len(p.draw_parallel_robots_params_by_algo) > 0:
             # draw's robots from other parallel dimensions at this time
             self.draw_variants(ax, p)
-
+        else:
+            for robot in self.robots.values():
+                robot.render(ax, p.robot_render_params)
         # plot a small tick in the bottom left corner of schematic showing
         # how long a real world meter would be in the simulator world
         if p.plot_meter_tick:
@@ -459,7 +466,7 @@ class SimState:
                 [start[0], start[0]], [start[1] + h, start[1] - h], col
             )  # tick left
             ax.plot([end[0], end[0]], [end[1] + h, end[1] - h], col)  # tick right
-            if p.plot_quiver:
+            if p.plot_meter_quiver:
                 ax.text(
                     0.5 * (start[0] + end[0]) - 0.2,
                     start[1] + 0.5,
@@ -491,28 +498,17 @@ class SimState:
                         if k[1] in legend_order
                         else max(legend_order.values()) + 1,
                     )
-                )
+                ),
+                loc=p.legend_loc,
             )
 
     def draw_variants(self, ax: pyplot.Axes, p: DotMap) -> None:
-        this_map_name: str = self.environment["map_name"]
         out_dir: str = p.output_directory
         for algo in list(p.draw_parallel_robots_params_by_algo.keys()):
-            new_dir = os.path.join(out_dir, "..", "..", "test_{}".format(algo))
+            test_name: str = out_dir.split("/")[-1]  # get name of this test
+            new_dir = os.path.join(out_dir, "..", "..", f"test_{algo}", f"{test_name}")
             if not os.path.exists(new_dir):
                 # print("{}Failed to find directory {}{}".format(color_text["red"], new_dir, color_text["reset"]))
-                continue
-            # find directory with the same map name
-            all_dirs = glob(os.path.join(new_dir, "test_*"))
-            found_corresponding_map_dir = False
-            for map_dir in all_dirs:
-                if this_map_name.lower() in map_dir.lower():
-                    new_dir = os.path.join(new_dir, map_dir)
-                    found_corresponding_map_dir = True
-                    # only finds first one
-                    break
-            if found_corresponding_map_dir == False:
-                # print('{}Failed to find matching "{}" find directory at {}{}'.format(color_text["red"],this_map_name,new_dir,color_text["reset"]))
                 continue
             # find sim_state_data directory
             new_file: str = os.path.join(
@@ -523,9 +519,12 @@ class SimState:
                 continue
             with open(new_file, "r") as f:
                 matching_parallel_sim_state = SimState.from_json(json.load(f))
-                matching_parallel_sim_state.get_robot().render(
-                    ax, p.draw_parallel_robots_params_by_algo[algo]
-                )
+                rob = matching_parallel_sim_state.get_robot()
+                rob.render(ax, p.draw_parallel_robots_params_by_algo[algo])
+                if p.draw_mark_of_shame and self.sim_t >= rob.last_collision_t:
+                    assert p.robot_render_params.body_collision_mpl_kwargs is not None
+                    x, y, _ = np.squeeze(rob.current_config.position_and_heading_nk3())
+                    ax.plot(x, y, **p.robot_render_params.collision_mini_dot_mpl_kwargs)
                 for pedestrian in matching_parallel_sim_state.pedestrians.values():
                     if (
                         pedestrian.collision_cooldown is not None

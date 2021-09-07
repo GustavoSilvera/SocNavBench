@@ -381,8 +381,10 @@ def create_renderer_params(render_3d: bool) -> DotMap:
     p.render_3D = render_3d
     p.draw_human_traversibles = renderer_p.getboolean("draw_human_traversible")
     p.plot_meter_tick = renderer_p.getboolean("plot_meter_tick")
-    p.plot_quiver = renderer_p.getboolean("plot_quiver")
+    p.plot_meter_quiver = renderer_p.getboolean("plot_meter_quiver")
     robot_kwargs = literal_eval(renderer_p.get("draw_parallel_robots_params_by_algo"))
+    p.legend_loc = renderer_p.get("legend_loc")
+    p.draw_mark_of_shame = renderer_p.getboolean("draw_mark_of_shame")
     p.draw_parallel_robots = renderer_p.getboolean("draw_parallel_robots")
     p.draw_parallel_robots_params_by_algo = {}
     for robot_algo in robot_kwargs:

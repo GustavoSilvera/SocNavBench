@@ -260,7 +260,7 @@ class JoystickBase:
                 self.sim_states[self.sim_state_now.get_sim_t()] = self.sim_state_now
 
             print(
-                "Updated state of the world for time = %.3f out of %.3f\r"
+                "Updated joystick for t=(%.3fs/%.3fs)\r"
                 % (self.sim_state_now.get_sim_t(), self.current_ep.get_time_budget()),
                 sep=" ",
                 end="",
