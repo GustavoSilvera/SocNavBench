@@ -522,7 +522,7 @@ class SimState:
                 rob = matching_parallel_sim_state.get_robot()
                 rob.render(ax, p.draw_parallel_robots_params_by_algo[algo])
                 if p.draw_mark_of_shame and self.sim_t >= rob.last_collision_t:
-                    assert p.robot_render_params.body_collision_mpl_kwargs is not None
+                    assert p.robot_render_params.collision_mini_dot_mpl_kwargs
                     x, y, _ = np.squeeze(rob.current_config.position_and_heading_nk3())
                     ax.plot(x, y, **p.robot_render_params.collision_mini_dot_mpl_kwargs)
                 for pedestrian in matching_parallel_sim_state.pedestrians.values():
