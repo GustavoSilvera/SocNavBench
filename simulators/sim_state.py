@@ -654,7 +654,7 @@ class SimState:
     ) -> None:
         if sim_t == 0:
             return  # bug where the first frame is not exported, just skip
-        img_size: float = 10 * p.img_scale
+        img_size: float = 10 * p.render_params.img_scale
         fig, ax = pyplot.subplots(1, 1, figsize=(1 * img_size, img_size))
         ax.set_title("Multi-robot Schematic View. t={:.3f}".format(sim_t), fontsize=14)
         ax.set_aspect("equal")

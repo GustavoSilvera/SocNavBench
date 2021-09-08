@@ -42,7 +42,7 @@ def plot_scene_images(
         plots.remove(ImageType.RGB)
         plots.remove(ImageType.DEPTH)
 
-    img_size: float = 10 * p.img_scale
+    img_size: float = 10 * p.render_params.img_scale
     fig, axs = pyplot.subplots(1, len(plots), figsize=(len(plots) * img_size, img_size))
     title: str = "sim:{:.3f}s wall:{:.3f}s".format(sim_state.sim_t, sim_state.wall_t)
     # fig.suptitle(title, fontsize=20)

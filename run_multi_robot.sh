@@ -5,7 +5,7 @@
 
 
 # make output logs directory
-logdir=tests/socnav/run_algo_logs
+logdir=tests/socnav/run_multi_robot_logs
 mkdir -p $logdir
 
 # define useful utilities
@@ -43,8 +43,8 @@ for algo in ${algos[*]}; do
     # wait a bit to start the joystick
     sleep 1.5
 
-    export TF_CPP_MIN_VLOG_LEVEL='3' # omit printing info & warnings
     eval $py joystick/joystick_client.py --algo "$algo" | \
+        grep -v 'I tensorflow/' | \
         awk "$manage_overwrite" | \
         sed "$ignore_colours" \
         &> $outdir/joystick.log & # log to file (with stderr)

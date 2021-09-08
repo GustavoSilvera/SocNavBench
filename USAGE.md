@@ -1,6 +1,6 @@
 # Usage and Information
 ## Overall Structure of the Simulator
-The `Simulator` used in `SocNavBench` runs through a single episode to execute and measure the `RobotAgent`'s planning algorithm for a particular episode. An episode consists of the parameters for a particular simulation, such as the pedestrians, environment, and robot's start/goal positions. In order to measure arbitrary planning algorithms we provide a `Joystick` API that translates data to and from the simulator to control the robot. 
+The simulator used in `SocNavBench` runs through a single episode to execute and measure a robot's planning algorithm for a particular episode. An episode consists of parameters such as the pedestrians, environment, and robot's start/goal positions. In order to measure arbitrary planning algorithms we provide a `Joystick API` that encodes data to and from the simulator to control the robot. 
 
 All our agents undergo a `sense()->plan()->act()` cycle to perceive and interact with the world. 
 
@@ -12,50 +12,99 @@ The simulator can be run in synchronous and asynchronous modes. In synchronous-m
 ![Detailed Structure](https://docs.google.com/drawings/d/e/2PACX-1vRlskIHFdvq8ZDlo0tUN5Z_BPCA87UldJgg6dgsbaMBOmkXgVecxNijFm9fxjgJSO-yj16HcGUaaK0G/pub?w=1075&h=798)
 
 ## Running `SocNavBench`
-To start the main process for `SocNavBench` enter the main directory and run the first command below (1) to see `Waiting for joystick connection...` Then run the second command (2) as a separate executable (ie. in another shell instance) to start the `Joystick` process.
-```
+To start SocNavBench run the first command below (1) to see `Waiting for joystick connection...` Then run the second command (2) as a separate executable (ie. in another shell instance) to start the `Joystick` process.
+```bash
 # The command to start the simulator (1)
+# Note the PYOPENGL_PLATFORM=egl is only necessary if you're using the full-render (non-schematic) mode
 PYOPENGL_PLATFORM=egl PYTHONPATH='.' python3 tests/test_episodes.py
 
-# The command to start the joystick executable (2)
-python3 joystick/joystick_client.py
+# The command to start the joystick executable (in another process) (2)
+PYTHONPATH='.' python3 joystick/joystick_client.py
 
 # now the two executables will complete the connection handshake and run side-by-side
 ```
-Note that the first time `SocNavBench` is run on a specific map it will generate a `traversible` (bitmap of non-obstructed areas in the map) that will be used for the simulation's environment. This traversible is then serialized under `SocNavBenchmark/sd3dis/stanford_building_parser_dataset/traversibles/` so it does not get regenerated upon repeated runs on the same map.
+Note that the first time SocNavBench is run on a specific map it will generate a `traversible` (bitmap of unobstructed areas in the map) that will be used for the simulation's environment. This traversible is then serialized under `SocNavBenchmark/sd3dis/stanford_building_parser_dataset/traversibles/` so it does not get regenerated upon repeated runs on the same map.
+
+### Note on using custom maps
+If you are interested in taking some kind of 2D representation of a map/environment (such as a top-down image/bitmap) and use that in the SocNavBench simulator, read on.
+
+The current simulator expects an input environment from one of the curated [sd3dis](http://buildingparser.stanford.edu/dataset.html) environments (Univ, Zara, Hotel, ETH, DoubleHotel) that we have made. You can view the logic for reloading maps [here](https://github.com/CMU-TBD/SocNavBench/blob/476bd383d57bc44719f8fb92ff6b12144ab072c8/sbpd/sbpd.py#L51-L62) which looks for all `.obj` files that match the name of a building. To introduce a new custom building to the simulator, you would need to convert your 2D representation into a "3D" `.obj` file by duplicating the ground vertices/faces up to some reasonable (>0) height so the 3D map has essentially binary depth. This should be very doable since `.obj` files are human readable text files describing a 3D mesh. Once you have a functional `.obj` file (viewable in blender for example) you will need to place it in the building mesh directory `SocNavBench/sd3dis/stanford_building_parser_dataset/mesh/` following the other maps (in a directory `custom_map_name/custom_map.obj`) and then your config file should specifically request the `"custom_map"` as the map for your episode. 
 
 ## More about the `Joystick` API
-In order to communicate with the robot's sense-plan-act cycle from a process external to the simulator we provide this "Joystick" interface. In synchronous mode the `RobotAgent` (and by extension `Simulator`) blocks on the socket-based data transmission between the joystick and the robot, providing 'free thinking time' as the simulator time stops until the robot progresses. To learn more see [`SocNavBench/joystick`](joystick/).
+In order to communicate with the robot's sense-plan-act cycle from a process external to the simulator we provide this "Joystick" interface. In synchronous mode the `RobotAgent` (and by extension `Simulator`) blocks on the socket-based data transmission between the joystick and the robot, providing "free thinking time" as the simulator time stops until the robot progresses. 
 
-The `Joystick` is expected to complete several key functions:
+The `Joystick` is guaranteed to complete several key functions:
 - `init_send_conn()` which establishes the socket that sends data to the robot.
 - `init_recv_conn()` which establishes the socket that receives data from the robot.
 - `get_all_episode_names()` which gets all the episodes (by name) that will be executed.
 - `get_episode_metadata()` which gets the specific metadata (see `Episodes` below) for the incoming episode.
 
-These functions are provided in `python` and `c++` in `joystick/joystick_py/` and `joystick/joystick_cpp/` respectively.
+These functions are provided in `python3` and `c++` in [`joystick/joystick_client.py`](joystick/joystick_client.py) and [`joystick/joystick_client.cpp`](joystick/joystick_client.cpp) respectively.
 
 Users will be responsible for implementing their own:
 - `sense()` which requests a JSON-serialized [`sim_state`](simulators/sim_state.py) and parses it.
-- `plan()` which uses the new information from the sense to determine next steps/actions to take.
+- `plan()` which uses the new information from the sense to determine next actions to take.
 - `act()` which sends commands to the robot to execute in the simulator.
 
 For communications we use the `AF_UNIX` protocol for the fastest communications within a local host machine. The default socket identifiers are `/tmp/socnavbench_joystick_recv` and `/tmp/socnavbench_joystick_send` which may be modified in [`params/user_params.ini`](params/user_params.ini) under `[robot_params]`. 
   
 ### A starting off point
 For joystick implementations we have provided two sample joystick instances in `python` and one in `c++` under [`SocNavBench/joystick/`](joystick/):
-- `joystick_random.py` which uses a generic random planner, showcasing one of the simplest uses of the Joystick interface.
-- `joystick_planner.py` which uses a basic sampling planner that can take the robot to the goal without obstacle collisions (has no notion of pedestrians).
-- `joystick_client.cpp` which is a simple random planner as well, but in `c++`. Highlighting the language-agnostic nature of the API.
+- [`joystick_random.py`](joystick/joystick_py/joystick_random.py) which uses a generic random planner, showcasing one of the simplest uses of the Joystick interface.
+- [`joystick_planner.py`](joystick/joystick_py/joystick_planner.py) which uses a basic sampling planner that can take the robot to the goal without obstacle collisions (pedestrian unaware).
+- [`joystick_client.cpp`](joystick/joystick_cpp/joystick_client.cpp) which is a simple random planner as well, but in `c++`. Highlighting the language-agnostic nature of the API.
   - Note: To build our cpp client run 
     ```bash
     g++ -g joystick/joystick_client.cpp
     ```
     NOTE: if you get an error for `#include "joystick_cpp/json.hpp` then you'll need to download [this json c++ file](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) and place it in `joystick_cpp/`. We used this json implementation since it was simplest and self-contained. We'll probably make a `makefile` in an upcoming task.
-
-Note that the provided joystick implementations (in python) are still executed by running `joystick_client.py` but is defaulted to using the `joystick_planner` implementation. To use the `joystick_random` implementation you can toggle the flag for `use_random_planner` under `[joystick_params]` in [`user_params.ini`](params/user_params.ini).
+  
+To run the joystick client with a particular algorithm you can make use of the `--algo` flag. Note that we have more algorithms supported in this [joystick-only repository](https://github.com/CMU-TBD/SocNavBench-baselines). There are instructions there on how to integrate those joysticks with the existing SocNavBench. 
+```bash
+# the following showcases all the algorithms we have tested support for
+# to see more on using all these algorithms, visit our joystick-specific repository here
+# https://github.com/CMU-TBD/SocNavBench-baselines
+PYTHONPATH='.' python3 joystick/joystick_client.py --algo "Sampling"
+PYTHONPATH='.' python3 joystick/joystick_client.py --algo "Random"
+PYTHONPATH='.' python3 joystick/joystick_client.py --algo "RVO"
+PYTHONPATH='.' python3 joystick/joystick_client.py --algo "RVOwCkpt"
+PYTHONPATH='.' python3 joystick/joystick_client.py --algo "Sacadrl"
+PYTHONPATH='.' python3 joystick/joystick_client.py --algo "SacadrlwCkpt"
+PYTHONPATH='.' python3 joystick/joystick_client.py --algo "social-force"
+```
 
 Also note that joystick must be run in an external process (but within the same `conda env`). Make sure before running `joystick_client.py` that the conda environment is `socnavbench` (same as for `test_socnav.py` and `test_episodes.py`)
+
+## Running Multi-robot mode
+An often useful feature is to compare different robot algorithms side-by-side in the same scenario. This can be done with SocNavBench after a bit of labour. 
+1. We'll need to run all the desired algorithms on the episode
+2. We'll need to store all the historical data for those previous runs (default behaviour per runs)
+3. We'll finally need to render a scene using all the historical data combined
+
+For a large number of algorithms, this is a very tedious process. To help, we have provided a script ([`run_multi_robot.sh`](run_multi_robot.sh)) that will automate this process. 
+- Note that most algorithm implementations have different procedures to run (such as calling an auxiliary process for the planning API).
+  - We have included all the necessary steps for the algorithms in [`SocNavBench-baselines`](https://github.com/CMU-TBD/SocNavBench-baselines) in the script, but you will need to add your own for custom algorithms. 
+
+Running the multi-robot script:
+```bash
+# cd to SocNavBench/ (within the socnavbench conda environment)
+./run_multi_robot.sh
+```
+You should then see output such as:
+```
+...
+Starting simulator server for algo "RVO" (pid: 345864)...
+Started joystick client for algo "RVO" (pid: 345884)...
+Started "./joystick/RVO2/RVO2" executable (pid: 345897)...
+Joystick "RVO" completed
+Stopped "./joystick/RVO2/RVO2" executable
+Finished process for algo "RVO"
+...
+```
+- The script should handle cleaning up all child processes. All logs are redirected to `tests/socnav/run_multi_robot_logs/` organized by algorithm name (Includes one `.log` file for the simulator, joystick, and any auxiliary processes). 
+  - Additionally, the simulator will automatically export the simulator frame data for every frame into `sim_state_data/` as a `.json` file ordered by the simulator time. This makes it easy to deserialize all the world information at a particular time for a particular algorithm on a particular episode. 
+
+Note that it is often useful to run without rendering a movie per episode. This can be done by setting the `no_render_movie` to `True` in [`user_params.ini`](params/user_params.ini) under `[renderer_params]`.
 
 ## More about the `Robot`
 As depicted in the [`user_params.ini`](params/user_params.ini) param file, the default robot is modeled after a [Pioneer P3DX robot](https://www.generationrobots.com/media/Pioneer3DX-P3DX-RevA.pdf). Since the simulation primaily focuses on the base of the robot, those are the dimensions we use. 

@@ -291,18 +291,15 @@ class SimulatorHelper(object):
         Args:
             filename (str, optional): name of each png frame (unindexed). Defaults to "obs".
         """
-        fps_scale: float = self.params.fps_scale_down
-        if fps_scale == 0 or not self.params.record_video:
-            print(
-                "%sNot rendering movie%s" % (color_text["orange"], color_text["reset"])
-            )
+        if not self.params.render_params.render_movie:
+            print(f"{color_text['orange']}Not rendering movie{color_text['reset']}")
             return
 
         # currently only single-threaded mode is supported for 3d rendering
-        num_cores: int = 1 if self.params.render_3D else self.params.num_render_cores
+        num_cores: int = 1 if self.params.render_3D else self.params.render_params.num_procs
 
         # Rendering movie
-        fps: float = fps_scale / self.dt
+        fps: float = 1.0 / self.dt
         print(
             "Rendering movie with {}fps={}{} on {}{} processors{}".format(
                 color_text["orange"],
@@ -342,27 +339,8 @@ class SimulatorHelper(object):
             num_frames = num_states_per_proc * num_cores
         else:
             num_states_per_proc = int(np.ceil(len(self.sim_states) / num_cores))
-            num_frames = int(np.ceil(len(sim_state_bank) * fps_scale))
+            num_frames = int(np.ceil(len(sim_state_bank)))
 
-        # generate associative flags
-        # figure out which frames (sim_states) to skip
-        def generate_skip_flags(num_s: int, framerate_scale: float) -> np.ndarray:
-            skip = 0
-            sim_state_skip = []
-            for _ in range(num_s):
-                if skip == 0:
-                    sim_state_skip.append(1)
-                    # reset skip counter for frames
-                    skip = int(1.0 / framerate_scale) - 1
-                else:
-                    sim_state_skip.append(0)
-                    # skip certain other frames as directed by the fps_scale_down
-                    skip -= 1
-            assert len(sim_state_skip) == num_s
-            return np.array(sim_state_skip).astype(np.int16)
-
-        sim_state_skip = generate_skip_flags(num_frames, fps_scale)
-        assert len(sim_state_skip) >= len(sim_state_bank)
         start_time = float(time.time())
 
         def worker_render_sim_states(procID: int) -> None:
@@ -380,7 +358,7 @@ class SimulatorHelper(object):
                         max_algo_times=max_algo_times,
                         filename="{}_obs{:03d}.png".format(filename, sim_idx),
                     )
-                elif sim_idx < len(sim_state_bank) and sim_state_skip[sim_idx] == 1:
+                elif sim_idx < len(sim_state_bank):
                     render_socnav(
                         sim_state=sim_state_bank[sim_idx],
                         renderer=renderer,
@@ -388,10 +366,9 @@ class SimulatorHelper(object):
                         camera_pos_13=camera_pos_13,
                         filename="{}_obs{:03d}.png".format(filename, sim_idx),
                     )
-                sim_label = int(sim_idx * fps_scale)
                 print(
                     "Rendered frames: {}/{} ({:.2f})%\r".format(
-                        sim_label, num_frames, 100.0 * min(1, sim_label / num_frames),
+                        sim_idx, num_frames, 100.0 * min(1, sim_idx / num_frames),
                     ),
                     sep=" ",
                     end="",
@@ -433,7 +410,7 @@ class SimulatorHelper(object):
         Args:
             clear_old_files (bool, optional): Whether or not to clear old image files. Defaults to True.
         """
-        if self.params.fps_scale_down == 0 or not self.params.record_video:
+        if not self.params.render_movie:
             return
         save_to_gif(
             self.params.output_directory,
