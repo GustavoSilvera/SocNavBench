@@ -64,6 +64,7 @@ for algo in ${algos[*]}; do
         echo -e "Joystick \"$algo\" completed"
         sleep 0.5
         kill -2 $aux_pid 2> /dev/null # gracefully interrupt (SIGINT) instead of hard kill (-9)
+        kill $aux_pid 2> /dev/null # another kill for good measure
         echo -e "Stopped \"$executable\" executable"
         
     }

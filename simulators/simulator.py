@@ -45,8 +45,11 @@ class Simulator(SimulatorHelper):
         # output directory is updated again if there is a robot (and algorithm) in the simulator
         self.params.output_directory = None
         self.params.render_params.output_directory = None
-        self.obstacle_map: SBPDMap = self.init_obstacle_map(renderer)
+        if environment is not None:
+            self.obstacle_map: SBPDMap = self.init_obstacle_map(renderer)
         self.r: SocNavRenderer = renderer
+        # only export the metadata for sim_states on the first one
+        self.first_export_metadata = True
 
     def init_sim_data(self, verbose: Optional[bool] = True) -> None:
         self.total_agents: int = len(self.agents) + len(self.backstage_prerecs)
@@ -208,8 +211,10 @@ class Simulator(SimulatorHelper):
         self.sim_states[sim_t_step] = current_state
         if self.algo_name is not None:
             current_state.export_to_file(
-                out_dir=os.path.join(self.params.output_directory, "sim_state_data")
+                out_dir=os.path.join(self.params.output_directory, "sim_state_data"),
+                export_metadata=self.first_export_metadata,
             )
+            self.first_export_metadata = False
         # debug prints
         return current_state
 

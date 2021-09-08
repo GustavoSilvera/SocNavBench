@@ -8,7 +8,7 @@ from dotmap import DotMap
 from matplotlib import pyplot
 from socnav.socnav_renderer import SocNavRenderer
 
-from utils.utils import color_text, natural_sort, touch
+from utils.utils import color_text, mkdir_if_missing, natural_sort, touch
 
 from enum import Enum, auto
 
@@ -293,12 +293,7 @@ def save_to_gif(
 ) -> None:
     """Takes the image directory and naturally sorts the images into a singular movie.gif"""
     if not os.path.exists(IMAGES_DIR):
-        raise Exception(
-            color_text["red"],
-            "ERROR: Failed to find image directory at",
-            IMAGES_DIR,
-            color_text["reset"],
-        )
+        mkdir_if_missing(IMAGES_DIR)
     # in the future we may consider using https://github.com/kkroening/ffmpeg-python
     if use_ffmpeg:
         save_to_gif_with_ffmpeg(filename, IMAGES_DIR, fps, clear_mp4)
