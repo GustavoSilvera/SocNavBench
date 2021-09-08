@@ -610,7 +610,6 @@ class SimState:
         p: DotMap,
     ) -> None:
         out_dir: str = p.output_directory
-        not_rendered_background: bool = True
         for algo in list(p.draw_parallel_robots_params_by_algo.keys()):
             test_name: str = out_dir.split("/")[-1]  # get name of this test
             exp_sim_state_file = SimState.get_sim_file_path(algo, test_name, sim_t)
@@ -627,10 +626,9 @@ class SimState:
 
             with open(exp_sim_state_file, "r") as f:
                 sim_state = SimState.from_json(json.load(f))
-                if not_rendered_background:
+                if algo == max(max_algo_times, key=max_algo_times.get):
                     sim_state.environment = env
-                    sim_state.render(ax, p)
-                    not_rendered_background = False
+                    sim_state.render(ax, p)  # render the sim_state of the slowest
                 rob = sim_state.get_robot()
                 rob.render(ax, p.draw_parallel_robots_params_by_algo[algo])
                 if p.draw_mark_of_shame and sim_t >= rob.last_collision_t:
@@ -658,7 +656,7 @@ class SimState:
             return  # bug where the first frame is not exported, just skip
         img_size: float = 10 * p.img_scale
         fig, ax = pyplot.subplots(1, 1, figsize=(1 * img_size, img_size))
-        ax.set_title("Multi-robot Schematic View", fontsize=14)
+        ax.set_title("Multi-robot Schematic View. t={:.3f}".format(sim_t), fontsize=14)
         ax.set_aspect("equal")
         # draw the SimStates
         SimState.draw_variants(env, sim_t, ax, max_algo_times, p.render_params)
