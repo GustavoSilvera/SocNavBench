@@ -39,7 +39,7 @@ for algo in ${algos[*]}; do
         > $outdir/simulator.log & # log to file
     # sim_pid=$! # always 1 less than the correct value (probably bc of the redirect?)
     sim_pid=$(find_pid "tests/test_episodes.py")
-    echo -e "Starting simulator server for algo \"$algo\" (pid: $sim_pid)..."
+    echo -e "Started simulator server for algo \"$algo\" (pid: $sim_pid)..."
     # wait a bit to start the joystick
     sleep 1.5
 

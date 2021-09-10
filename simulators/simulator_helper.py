@@ -367,7 +367,7 @@ class SimulatorHelper(object):
                         filename="{}_obs{:03d}.png".format(filename, sim_idx),
                     )
                 print(
-                    "Rendered frames: {}/{} ({:.2f})%\r".format(
+                    "Rendered frames: {}/{} ({:.2f}%)\r".format(
                         sim_idx, num_frames, 100.0 * min(1, sim_idx / num_frames),
                     ),
                     sep=" ",
@@ -398,7 +398,7 @@ class SimulatorHelper(object):
             proc.join()
         time_end = float(time.time())
         print(
-            "Rendered frames: {}/{} ({:.2f})%\n"
+            "Rendered frames: {}/{} ({:.2f}%)\n"
             "Finished rendering in {:.2f}s".format(
                 num_frames, num_frames, 100.0, (time_end - start_time)
             )
@@ -410,14 +410,14 @@ class SimulatorHelper(object):
         Args:
             clear_old_files (bool, optional): Whether or not to clear old image files. Defaults to True.
         """
-        if not self.params.render_movie:
+        if not self.params.render_params.render_movie:
             return
         save_to_gif(
             self.params.output_directory,
             fps=fps,
             filename="movie_{}".format(filename),
             use_ffmpeg=True,  # TODO: move to params
-            clear_old_files=self.params.clear_files,
+            clear_old_files=self.params.render_params.clear_files,
         )
         return
 

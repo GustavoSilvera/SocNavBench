@@ -244,10 +244,8 @@ def save_to_gif_with_ffmpeg(
         return save_to_gif_with_imageio(filename, IMAGES_DIR, fps, clean_pngs)
 
 
-def save_to_gif_with_imageio(
-    filename: str, IMAGES_DIR: str, fps: float, clean_files: Optional[bool] = False
-) -> bool:
-    gif_filename: str = "{}.gif".format(filename)
+def save_to_gif_with_imageio(filename: str, IMAGES_DIR: str, fps: float) -> bool:
+    gif_filename: str = os.path.join(IMAGES_DIR, "{}.gif".format(filename))
     files: List[str] = natural_sort(glob.glob(os.path.join(IMAGES_DIR, "*.png")))
     with imageio.get_writer(gif_filename, mode="I", fps=fps) as writer:
         for i, png_filename in enumerate(files):
@@ -279,7 +277,6 @@ def save_to_gif_with_imageio(
             color_text["green"], gif_filename, color_text["reset"]
         )
     )
-    # Clearing remaining files to not affect next render
     return True
 
 
@@ -295,6 +292,7 @@ def save_to_gif(
     if not os.path.exists(IMAGES_DIR):
         mkdir_if_missing(IMAGES_DIR)
     # in the future we may consider using https://github.com/kkroening/ffmpeg-python
+    # NOTE: ffmpeg produces a nice mp4, but worse gif, imageio produces a nicer gif
     if use_ffmpeg:
         save_to_gif_with_ffmpeg(filename, IMAGES_DIR, fps, clear_mp4)
     else:
