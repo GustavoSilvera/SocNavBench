@@ -25,18 +25,9 @@ sudo apt install gcc g++ libassimp-dev ffmpeg
 
 ### Setup A Virtual Environment
 ```bash
-conda env create -f environment.yml # this might end with "Pip failed" which is fine
+conda env create -f environment.yml # this will install all required dependencies
 conda activate socnavbench
 ```
-
-#### Install pip/conda packages
-In the terminal (and in the virtual environment from above: `socnavbench`) run:
-```bash
-chmod a+x get_packages.sh
-bash get_packages.sh # make sure the socnavbench conda environment is active!
-```
-The script will inform you of all packages being installed and their status, they can also all be install manually
-
 
 #### Patch the OpenGL Installation
 In the terminal run the following commands.
