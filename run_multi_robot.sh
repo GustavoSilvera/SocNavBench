@@ -43,8 +43,8 @@ for algo in ${algos[*]}; do
     # wait a bit to start the joystick
     sleep 1.5
 
+    export TF_CPP_MIN_LOG_LEVEL=3 # minimal TF logging
     eval $py joystick/joystick_client.py --algo "$algo" | \
-        grep -v 'I tensorflow/' | \
         awk "$manage_overwrite" | \
         sed "$ignore_colours" \
         &> $outdir/joystick.log & # log to file (with stderr)
