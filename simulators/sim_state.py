@@ -1,14 +1,14 @@
 import json
 import os
 from glob import glob
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from agents.agent import Agent
 from agents.humans.human import Human, HumanAppearance
 from agents.robot_agent import RobotAgent
 from dotmap import DotMap
-from matplotlib import pyplot
+from matplotlib import pyplot, lines
 from params.central_params import get_path_to_socnav
 from trajectory.trajectory import SystemConfig, Trajectory
 from utils.utils import (
@@ -494,14 +494,23 @@ class SimState:
     def draw_legend(self, ax: pyplot.Axes, p: DotMap) -> None:
         # ensure no duplicate labels occur
         handles, labels = ax.get_legend_handles_labels()
-        for h in handles:
-            h.set_linestyle("")
-        unique = [
-            (h, l)
-            for i, (h, l) in enumerate(zip(handles, labels))
-            if l not in labels[:i]
-        ]
-        if len(unique) == 0:
+        legend_keys: Dict[str, pyplot.Line2D] = {}
+        assert len(handles) == len(labels)
+        for i in range(len(handles)):
+            label: str = labels[i]
+            handle: pyplot.Line2D = handles[i]
+            handle.set_linestyle("")  # no line passing through
+            if p.collided_robots != DotMap() and label in p.collided_robots:
+                assert p.robot_render_params.collision_mini_dot_mpl_kwargs is not None
+                mark_of_shame: pyplot.Line2D = lines.Line2D(
+                    xdata=[0],  # not plotted, xdata & ydata just have to be non-empty
+                    ydata=[0],
+                    **p.robot_render_params.collision_mini_dot_mpl_kwargs,
+                )
+                mark_of_shame.set_linestyle("")
+                handle: Tuple[pyplot.Line2D] = (handle, mark_of_shame)  # mark in legend
+            legend_keys[label] = handle
+        if len(legend_keys) == 0:
             return  # do nothing, no label to print
         legend_order: Dict[str, int] = {
             "Pedestrian": 0,
@@ -509,12 +518,12 @@ class SimState:
             "Robot Goal": 2,
             # anything else is arbitrary
         }
-        # unique is a list of [(line2d, str), (line2d, str), ...]
-        # where the str is the label (eg. "Pedestrian")
-        ax.legend(
+        # organize the keys in the dictionary by the legend_order if present
+        lgnd = ax.legend(
             *zip(
                 *sorted(
-                    unique,
+                    # ensure each item is a tuple(line2D, str)
+                    [item[::-1] for item in legend_keys.items()],
                     key=lambda k: legend_order[k[1]]
                     if k[1] in legend_order
                     else max(legend_order.values()) + 1,
@@ -610,6 +619,7 @@ class SimState:
         p: DotMap,
     ) -> None:
         out_dir: str = p.output_directory
+        p.collided_robots = []  # track which robots collided across sim-states
         for algo in list(p.draw_parallel_robots_params_by_algo.keys()):
             test_name: str = out_dir.split("/")[-1]  # get name of this test
             exp_sim_state_file = SimState.get_sim_file_path(algo, test_name, sim_t)
@@ -630,11 +640,14 @@ class SimState:
                     sim_state.environment = env
                     sim_state.render(ax, p)  # render the sim_state of the slowest
                 rob = sim_state.get_robot()
-                rob.render(ax, p.draw_parallel_robots_params_by_algo[algo])
+                algo_params: DotMap = p.draw_parallel_robots_params_by_algo[algo]
+                rob.render(ax, algo_params)
                 if p.draw_mark_of_shame and sim_t >= rob.last_collision_t:
                     assert p.robot_render_params.collision_mini_dot_mpl_kwargs
                     x, y, _ = np.squeeze(rob.current_config.position_and_heading_nk3())
                     ax.plot(x, y, **p.robot_render_params.collision_mini_dot_mpl_kwargs)
+                    rob_label: str = algo_params["body_normal_mpl_kwargs"]["label"]
+                    p.collided_robots.append(rob_label)  # track this robot as "shamed"
                 for pedestrian in sim_state.pedestrians.values():
                     if (
                         pedestrian.collision_cooldown is not None
@@ -643,6 +656,8 @@ class SimState:
                         pedestrian.render(ax, p.human_render_params)
                 # draw legend last (after all other agents/robots)
                 sim_state.draw_legend(ax, p)
+        # reset tracking which robots collided on this frame
+        p.collided_robots = []
 
     @staticmethod
     def render_multi_robot(
